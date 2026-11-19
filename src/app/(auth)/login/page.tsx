@@ -85,7 +85,7 @@ function LoginFormContent() {
   // Helper to prefill demo accounts for convenience
   const fillDemo = (email: string) => {
     setValue('email', email)
-    setValue('password', 'password123')
+    setValue('password', 'DemoPassword123!')
   }
 
   return (
@@ -224,28 +224,28 @@ function LoginFormContent() {
               <div className="grid grid-cols-2 gap-2 mt-2">
                 <button
                   type="button"
-                  onClick={() => fillDemo('admin@abctech.com')}
+                  onClick={() => fillDemo('superadmin@abc-tech.com')}
                   className="text-xs py-1 px-2 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium transition-colors"
                 >
-                  👑 Admin
+                  👑 Super Admin
                 </button>
                 <button
                   type="button"
-                  onClick={() => fillDemo('hr@abctech.com')}
+                  onClick={() => fillDemo('hr1@abc-tech.com')}
                   className="text-xs py-1 px-2 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium transition-colors"
                 >
                   💼 HR Admin
                 </button>
                 <button
                   type="button"
-                  onClick={() => fillDemo('manager@abctech.com')}
+                  onClick={() => fillDemo('manager.eng@abc-tech.com')}
                   className="text-xs py-1 px-2 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium transition-colors"
                 >
                   👥 Manager
                 </button>
                 <button
                   type="button"
-                  onClick={() => fillDemo('employee@abctech.com')}
+                  onClick={() => fillDemo('arjun.kumar@abc-tech.com')}
                   className="text-xs py-1 px-2 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium transition-colors"
                 >
                   👤 Employee
