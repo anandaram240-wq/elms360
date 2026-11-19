@@ -16,13 +16,13 @@ import { signOut } from '@/app/actions/auth'
 import { useUnreadNotificationCount, useMyNotifications } from '@/hooks/queries/use-employee-queries'
 
 const employeeNavItems = [
-  { title: 'Dashboard', href: '/employee/dashboard', icon: LayoutDashboard },
+  { title: 'Overview', href: '/employee/dashboard', icon: LayoutDashboard },
   { title: 'Apply Leave', href: '/employee/apply-leave', icon: CalendarPlus },
   { title: 'My Leaves', href: '/employee/my-leaves', icon: CalendarCheck },
-  { title: 'Calendar', href: '/employee/leave-calendar', icon: CalendarIcon },
   { title: 'Leave Balance', href: '/employee/leave-balance', icon: PieChart },
+  { title: 'Leave Calendar', href: '/employee/leave-calendar', icon: CalendarIcon },
   { title: 'Notifications', href: '/employee/notifications', icon: Bell },
-  { title: 'Profile', href: '/employee/profile', icon: User },
+  { title: 'My Profile', href: '/employee/profile', icon: User },
 ]
 
 export interface EmployeeLayoutClientProps {

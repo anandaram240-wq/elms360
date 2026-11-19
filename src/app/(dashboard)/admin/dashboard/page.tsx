@@ -31,31 +31,31 @@ export default async function AdminDashboardPage() {
   const { stats, recentAuditLogs, systemServices } = data
 
   return (
-    <div className="space-y-8 p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="space-y-6 pb-12">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-[#E5E7EB]">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-extrabold tracking-tight">System Administration</h1>
-            <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200">
+            <h1 className="text-2xl font-bold tracking-tight text-[#111827]">System Governance</h1>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]">
               Super Admin Control
-            </Badge>
+            </span>
           </div>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm text-[#475569] mt-1">
             Global governance, system health diagnostics, multi-tenant directory, and access policies.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" asChild className="border-[#E5E7EB] text-xs h-9">
             <Link href="/admin/system-settings">
-              <Settings className="w-4 h-4 mr-2" />
+              <Settings className="w-3.5 h-3.5 mr-1.5" />
               Settings
             </Link>
           </Button>
-          <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white" asChild>
+          <Button size="sm" className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs h-9 font-semibold" asChild>
             <Link href="/admin/security">
-              <ShieldCheck className="w-4 h-4 mr-2" />
+              <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
               Security Suite
             </Link>
           </Button>

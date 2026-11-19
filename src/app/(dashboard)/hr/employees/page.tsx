@@ -15,7 +15,6 @@ import {
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -33,7 +32,6 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { useElmsStore, EmployeeRecord } from '@/lib/store/elms-store'
-import { RoleCode } from '@/types/app'
 
 export default function HrEmployeesPage() {
   const { state, addEmployee, updateEmployee, toggleEmployeeActive } = useElmsStore()
@@ -132,8 +130,8 @@ export default function HrEmployeesPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Employee Directory</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-[#111827]">Employee Directory</h1>
+          <p className="text-sm text-[#475569] mt-1">
             Manage organization workforce, assign reporting managers, and monitor employment status.
           </p>
         </div>
@@ -142,7 +140,7 @@ export default function HrEmployeesPage() {
             setAddCode(`EMP00${state.employees.length + 1}`)
             setIsAddOpen(true)
           }}
-          className="bg-blue-600 hover:bg-blue-700 text-white gap-2 font-semibold shadow-xs"
+          className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white gap-2 font-semibold shadow-subtle cursor-pointer"
         >
           <UserPlus className="h-4 w-4" />
           Add Employee
@@ -150,36 +148,37 @@ export default function HrEmployeesPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-3">
+      <div className="bg-white p-4 rounded-xl border border-[#E5E7EB] shadow-subtle flex flex-col sm:flex-row items-center gap-3">
         <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94A3B8]" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, code, email, designation..."
-            className="pl-9 h-9 border-slate-200 text-xs"
+            className="pl-9 h-9 border-[#E5E7EB] text-xs bg-white text-[#111827]"
           />
         </div>
         <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-          <SelectTrigger className="w-full sm:w-48 h-9 border-slate-200 text-xs">
+          <SelectTrigger className="w-full sm:w-48 h-9 border-[#E5E7EB] text-xs bg-white text-[#111827]">
             <SelectValue placeholder="All Departments" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white border-[#E5E7EB] text-[#111827]">
             <SelectItem value="ALL">All Departments</SelectItem>
             <SelectItem value="Engineering">Engineering</SelectItem>
             <SelectItem value="Human Resources">Human Resources</SelectItem>
             <SelectItem value="Finance">Finance</SelectItem>
             <SelectItem value="Marketing">Marketing</SelectItem>
-            <SelectItem value="Operations">Operations</SelectItem>
+            <SelectItem value="Sales">Sales</SelectItem>
+            <SelectItem value="Customer Support">Customer Support</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {/* Employees Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-subtle overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+            <thead className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[#475569] font-semibold uppercase tracking-wider text-[11px]">
               <tr>
                 <th className="py-3 px-4">Code</th>
                 <th className="py-3 px-4">Employee</th>
@@ -189,31 +188,33 @@ export default function HrEmployeesPage() {
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
+            <tbody className="divide-y divide-[#E5E7EB] text-[#334155]">
               {filteredEmployees.map((emp) => (
-                <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3.5 px-4 font-mono font-semibold text-slate-700">
+                <tr key={emp.id} className="hover:bg-[#F8FAFC] transition-colors">
+                  <td className="py-3.5 px-4 font-mono font-semibold text-[#475569]">
                     {emp.employee_code}
                   </td>
                   <td className="py-3.5 px-4">
                     <div>
-                      <p className="font-semibold text-slate-900">{emp.full_name}</p>
-                      <p className="text-[11px] text-slate-400">{emp.work_email}</p>
+                      <p className="font-semibold text-[#111827]">{emp.full_name}</p>
+                      <p className="text-[11px] text-[#64748B]">{emp.work_email}</p>
                     </div>
                   </td>
                   <td className="py-3.5 px-4">
                     <div>
-                      <p className="font-medium text-slate-800">{emp.designation}</p>
-                      <p className="text-[11px] text-slate-400">{emp.department_name}</p>
+                      <p className="font-medium text-[#111827]">{emp.designation}</p>
+                      <p className="text-[11px] text-[#64748B]">{emp.department_name}</p>
                     </div>
                   </td>
-                  <td className="py-3.5 px-4 font-medium text-slate-700">
+                  <td className="py-3.5 px-4 font-medium text-[#475569]">
                     {emp.manager_name || 'Executive Level'}
                   </td>
                   <td className="py-3.5 px-4">
                     <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                        emp.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                        emp.is_active
+                          ? 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]'
+                          : 'bg-[#F1F5F9] text-[#475569] border-[#E5E7EB]'
                       }`}
                     >
                       {emp.is_active ? 'Active' : 'Inactive'}
@@ -230,7 +231,7 @@ export default function HrEmployeesPage() {
                           setEditDepartment(emp.department_name)
                           setEditManagerId(emp.manager_id || '')
                         }}
-                        className="h-8 px-2 text-blue-600 hover:bg-blue-50 text-xs gap-1"
+                        className="h-8 px-2 text-[#2563EB] hover:bg-[#EFF6FF] text-xs gap-1"
                       >
                         <Edit2 className="h-3.5 w-3.5" />
                         Edit
@@ -240,13 +241,10 @@ export default function HrEmployeesPage() {
                         size="sm"
                         onClick={() => {
                           toggleEmployeeActive(emp.id)
-                          toast.success(`${emp.full_name} is now ${emp.is_active ? 'Inactive' : 'Active'}.`)
+                          toast.success(`Employee ${emp.full_name} marked as ${emp.is_active ? 'Inactive' : 'Active'}.`)
                         }}
-                        className={`h-8 px-2 text-xs gap-1 ${
-                          emp.is_active ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'
-                        }`}
+                        className="h-8 px-2 text-[#64748B] hover:text-[#111827] hover:bg-[#F1F3F5] text-xs"
                       >
-                        {emp.is_active ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
                         {emp.is_active ? 'Deactivate' : 'Activate'}
                       </Button>
                     </div>
@@ -259,119 +257,194 @@ export default function HrEmployeesPage() {
       </div>
 
       {/* Add Employee Modal */}
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="max-w-md bg-white border-slate-200">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900">Add New Employee</DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Create employee profile and automatically seed annual leave balances.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateEmployee} className="py-2 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Employee Code *</Label>
-                <Input value={addCode} onChange={(e) => setAddCode(e.target.value)} className="h-9 text-xs" required />
+      {isAddOpen && (
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogContent className="max-w-md bg-white border-[#E5E7EB] text-[#111827] rounded-2xl shadow-modal">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold text-[#111827]">
+                Add New Employee
+              </DialogTitle>
+              <DialogDescription className="text-xs text-[#64748B]">
+                Create a new corporate employee profile and automatically assign baseline leave quotas.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleCreateEmployee} className="space-y-4 py-2 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="code" className="font-semibold text-[#111827]">Employee Code</Label>
+                  <Input
+                    id="code"
+                    value={addCode}
+                    onChange={(e) => setAddCode(e.target.value)}
+                    required
+                    className="border-[#E5E7EB] text-xs h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="name" className="font-semibold text-[#111827]">Full Name</Label>
+                  <Input
+                    id="name"
+                    value={addName}
+                    onChange={(e) => setAddName(e.target.value)}
+                    placeholder="e.g. John Doe"
+                    required
+                    className="border-[#E5E7EB] text-xs h-9"
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Full Name *</Label>
-                <Input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="e.g. John Doe" className="h-9 text-xs" required />
-              </div>
-            </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-700">Work Email *</Label>
-              <Input type="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} placeholder="e.g. john.doe@abc-tech.com" className="h-9 text-xs" required />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Designation</Label>
-                <Input value={addDesignation} onChange={(e) => setAddDesignation(e.target.value)} placeholder="e.g. Software Engineer" className="h-9 text-xs" />
+                <Label htmlFor="email" className="font-semibold text-[#111827]">Work Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={addEmail}
+                  onChange={(e) => setAddEmail(e.target.value)}
+                  placeholder="e.g. jdoe@abc-tech.com"
+                  required
+                  className="border-[#E5E7EB] text-xs h-9"
+                />
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="designation" className="font-semibold text-[#111827]">Designation</Label>
+                  <Input
+                    id="designation"
+                    value={addDesignation}
+                    onChange={(e) => setAddDesignation(e.target.value)}
+                    placeholder="e.g. Product Manager"
+                    className="border-[#E5E7EB] text-xs h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="font-semibold text-[#111827]">Department</Label>
+                  <Select value={addDepartment} onValueChange={setAddDepartment}>
+                    <SelectTrigger className="border-[#E5E7EB] text-xs h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-[#E5E7EB]">
+                      <SelectItem value="Engineering">Engineering</SelectItem>
+                      <SelectItem value="Human Resources">Human Resources</SelectItem>
+                      <SelectItem value="Finance">Finance</SelectItem>
+                      <SelectItem value="Marketing">Marketing</SelectItem>
+                      <SelectItem value="Sales">Sales</SelectItem>
+                      <SelectItem value="Customer Support">Customer Support</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Department</Label>
-                <Select value={addDepartment} onValueChange={setAddDepartment}>
-                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Engineering">Engineering</SelectItem>
-                    <SelectItem value="Human Resources">Human Resources</SelectItem>
-                    <SelectItem value="Finance">Finance</SelectItem>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Operations">Operations</SelectItem>
+                <Label className="font-semibold text-[#111827]">Reporting Line Manager</Label>
+                <Select value={addManagerId} onValueChange={setAddManagerId}>
+                  <SelectTrigger className="border-[#E5E7EB] text-xs h-9">
+                    <SelectValue placeholder="Select reporting manager (Optional)" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-[#E5E7EB]">
+                    <SelectItem value="">None (Executive Level)</SelectItem>
+                    {managers.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.full_name} ({m.designation})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-700">Reporting Manager</Label>
-              <Select value={addManagerId} onValueChange={setAddManagerId}>
-                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select manager" /></SelectTrigger>
-                <SelectContent>
-                  {managers.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.full_name} ({m.designation})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-              <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">Create Employee</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+              <DialogFooter className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsAddOpen(false)}
+                  className="text-xs h-9 border-[#E5E7EB]"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs h-9 font-semibold"
+                >
+                  Create Employee
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Edit Employee Modal */}
       {editingEmployee && (
-        <Dialog open={Boolean(editingEmployee)} onOpenChange={() => setEditingEmployee(null)}>
-          <DialogContent className="max-w-md bg-white border-slate-200">
+        <Dialog open={!!editingEmployee} onOpenChange={() => setEditingEmployee(null)}>
+          <DialogContent className="max-w-md bg-white border-[#E5E7EB] text-[#111827] rounded-2xl shadow-modal">
             <DialogHeader>
-              <DialogTitle className="text-base font-bold text-slate-900">Edit {editingEmployee.full_name}</DialogTitle>
-              <DialogDescription className="text-xs text-slate-500">
-                Update designation, department, or change reporting manager.
+              <DialogTitle className="text-base font-bold text-[#111827]">
+                Edit Employee Details
+              </DialogTitle>
+              <DialogDescription className="text-xs text-[#64748B]">
+                Update profile, designation, or reporting structure for {editingEmployee.full_name}.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSaveEdit} className="py-2 space-y-3">
+            <form onSubmit={handleSaveEdit} className="space-y-4 py-2 text-xs">
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Designation</Label>
-                <Input value={editDesignation} onChange={(e) => setEditDesignation(e.target.value)} className="h-9 text-xs" />
+                <Label htmlFor="editDesignation" className="font-semibold text-[#111827]">Job Title / Designation</Label>
+                <Input
+                  id="editDesignation"
+                  value={editDesignation}
+                  onChange={(e) => setEditDesignation(e.target.value)}
+                  className="border-[#E5E7EB] text-xs h-9"
+                />
               </div>
+
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Department</Label>
+                <Label className="font-semibold text-[#111827]">Department</Label>
                 <Select value={editDepartment} onValueChange={setEditDepartment}>
-                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
+                  <SelectTrigger className="border-[#E5E7EB] text-xs h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-[#E5E7EB]">
                     <SelectItem value="Engineering">Engineering</SelectItem>
                     <SelectItem value="Human Resources">Human Resources</SelectItem>
                     <SelectItem value="Finance">Finance</SelectItem>
                     <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Operations">Operations</SelectItem>
+                    <SelectItem value="Sales">Sales</SelectItem>
+                    <SelectItem value="Customer Support">Customer Support</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Reporting Manager</Label>
+                <Label className="font-semibold text-[#111827]">Assigned Reporting Manager</Label>
                 <Select value={editManagerId} onValueChange={setEditManagerId}>
-                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select manager" /></SelectTrigger>
-                  <SelectContent>
-                    {managers
-                      .filter((m) => m.id !== editingEmployee.id)
-                      .map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.full_name} ({m.designation})
-                        </SelectItem>
-                      ))}
+                  <SelectTrigger className="border-[#E5E7EB] text-xs h-9">
+                    <SelectValue placeholder="Select manager" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-[#E5E7EB]">
+                    <SelectItem value="">None (Executive Level)</SelectItem>
+                    {managers.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.full_name} ({m.designation})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+
               <DialogFooter className="pt-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setEditingEmployee(null)}>Cancel</Button>
-                <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">Save Changes</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingEmployee(null)}
+                  className="text-xs h-9 border-[#E5E7EB]"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs h-9 font-semibold"
+                >
+                  Save Changes
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>

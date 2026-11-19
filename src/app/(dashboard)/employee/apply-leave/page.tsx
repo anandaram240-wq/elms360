@@ -12,14 +12,15 @@ import {
   AlertTriangle,
   ArrowRight,
   Loader2,
-  ShieldAlert,
   Send,
   Building,
   Check,
+  CalendarCheck,
+  Info,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -92,20 +93,20 @@ export default function ApplyLeavePage() {
 
   // Validation
   const validationError = React.useMemo(() => {
-    if (!leaveTypeId) return 'Please choose a leave category.'
+    if (!leaveTypeId) return 'Please select a leave category.'
     if (!startDate || !endDate) return 'Please select both start and end dates.'
     if (endDateStr < startDateStr) return 'End date cannot be earlier than start date.'
     if (durationResult && durationResult.workingDays <= 0) {
-      return 'The selected dates contain 0 working days (weekends or holidays are automatically exempted).'
+      return 'The selected dates contain 0 working days (weekends or holidays are automatically exempted by policy).'
     }
-    if (selectedType?.code !== 'LOP' && workingDays > availableDays) {
+    if (selectedType?.code !== 'UPL' && workingDays > availableDays) {
       return `Insufficient leave balance (${availableDays} days available, but requested ${workingDays} days).`
     }
     if (overlapConflict) {
       return `Overlaps with existing leave request (${overlapConflict.request_number}: ${overlapConflict.start_date} to ${overlapConflict.end_date}).`
     }
     if (reason.trim().length < 3) {
-      return 'Please enter a justification (minimum 3 characters).'
+      return 'Please enter a reason for your leave (minimum 3 characters).'
     }
     return null
   }, [leaveTypeId, startDate, endDate, endDateStr, startDateStr, durationResult, selectedType, workingDays, availableDays, overlapConflict, reason])
@@ -134,7 +135,7 @@ export default function ApplyLeavePage() {
         return
       }
 
-      toast.success(`Leave request ${res.request.request_number} submitted successfully! Routed to manager for approval.`)
+      toast.success(`Leave application ${res.request.request_number} submitted! Routed to manager for review.`)
       router.push('/employee/my-leaves')
     } catch (err: any) {
       toast.error(err?.message || 'An error occurred during submission.')
@@ -147,45 +148,46 @@ export default function ApplyLeavePage() {
     <div className="max-w-6xl mx-auto space-y-6 pb-16">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Apply for Leave</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Submit your leave application for manager and HR approval. Working days are computed automatically based on your schedule.
+        <h1 className="text-2xl font-bold tracking-tight text-[#111827]">Apply for Leave</h1>
+        <p className="text-sm text-[#475569] mt-1">
+          Complete the application below. Working days and holidays are computed automatically against your work schedule.
         </p>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: Clean Single-Page Form (7 cols) */}
+          {/* Left Column: Clean 2-Section Form (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
-            <Card className="border-slate-200 shadow-sm bg-white">
-              <CardHeader className="pb-4 border-b border-slate-100">
-                <CardTitle className="text-base font-semibold text-slate-900">1. Leave Category & Schedule</CardTitle>
-                <CardDescription className="text-xs text-slate-500">
-                  Select the applicable leave policy and duration
+            {/* SECTION 1: Leave Information */}
+            <Card className="border-[#E5E7EB] shadow-subtle bg-white rounded-xl">
+              <CardHeader className="pb-4 border-b border-[#F1F3F5]">
+                <CardTitle className="text-sm font-bold text-[#111827]">1. Leave Category & Schedule</CardTitle>
+                <CardDescription className="text-xs text-[#64748B]">
+                  Choose your leave category, date range and schedule type
                 </CardDescription>
               </CardHeader>
-              <CardContent className="pt-6 space-y-5">
+              <CardContent className="pt-5 space-y-5">
                 {/* Leave Type */}
-                <div className="space-y-2">
-                  <Label htmlFor="leaveType" className="text-xs font-semibold text-slate-700">
-                    Leave Type <span className="text-rose-500">*</span>
+                <div className="space-y-1.5">
+                  <Label htmlFor="leaveType" className="text-xs font-semibold text-[#111827]">
+                    Leave Type <span className="text-[#991B1B]">*</span>
                   </Label>
                   <Select value={leaveTypeId} onValueChange={setLeaveTypeId}>
-                    <SelectTrigger id="leaveType" className="w-full h-10 border-slate-200">
+                    <SelectTrigger id="leaveType" className="w-full h-10 border-[#E5E7EB] bg-white text-[#111827]">
                       <SelectValue placeholder="Select leave category" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white border-[#E5E7EB] text-[#111827]">
                       {state.leaveTypes.map((type) => {
                         const bal = myBalances.find((b) => b.leave_type_id === type.id)
                         const avail = bal ? bal.available_balance : 0
                         return (
-                          <SelectItem key={type.id} value={type.id}>
+                          <SelectItem key={type.id} value={type.id} className="cursor-pointer hover:bg-[#F1F3F5]">
                             <div className="flex items-center justify-between w-full gap-4">
-                              <span className="font-medium text-slate-800">
+                              <span className="font-medium text-[#111827]">
                                 {type.name} ({type.code})
                               </span>
-                              <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                                {avail} days available
+                              <span className="text-xs font-semibold text-[#475569] bg-[#F1F3F5] px-2 py-0.5 rounded-full">
+                                {avail} days left
                               </span>
                             </div>
                           </SelectItem>
@@ -197,9 +199,9 @@ export default function ApplyLeavePage() {
 
                 {/* Dates */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-slate-700">
-                      Start Date <span className="text-rose-500">*</span>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-[#111827]">
+                      Start Date <span className="text-[#991B1B]">*</span>
                     </Label>
                     <DatePicker
                       value={startDate}
@@ -213,9 +215,9 @@ export default function ApplyLeavePage() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-slate-700">
-                      End Date <span className="text-rose-500">*</span>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-[#111827]">
+                      End Date <span className="text-[#991B1B]">*</span>
                     </Label>
                     <DatePicker
                       value={endDate}
@@ -226,23 +228,23 @@ export default function ApplyLeavePage() {
                   </div>
                 </div>
 
-                {/* Day Schedule Toggle */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-slate-700">Day Schedule</Label>
+                {/* Day Schedule Selection */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-[#111827]">Day Schedule</Label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { id: 'FULL_DAY', label: 'Full Day' },
-                      { id: 'HALF_DAY_AM', label: 'Half Day (Morning)' },
-                      { id: 'HALF_DAY_PM', label: 'Half Day (Afternoon)' },
+                      { id: 'HALF_DAY_AM', label: 'Half Day (AM)' },
+                      { id: 'HALF_DAY_PM', label: 'Half Day (PM)' },
                     ].map((item) => (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => setDayType(item.id as DayType)}
-                        className={`py-2 px-3 text-xs font-medium rounded-lg border transition-all text-center ${
+                        className={`py-2 px-3 text-xs font-medium rounded-lg border transition-all text-center cursor-pointer ${
                           dayType === item.id
-                            ? 'bg-blue-50 border-blue-600 text-blue-700 font-semibold shadow-xs'
-                            : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                            ? 'bg-[#EFF6FF] border-[#2563EB] text-[#2563EB] font-semibold shadow-xs'
+                            : 'border-[#E5E7EB] bg-white text-[#475569] hover:bg-[#F8FAFC]'
                         }`}
                       >
                         {item.label}
@@ -253,49 +255,50 @@ export default function ApplyLeavePage() {
               </CardContent>
             </Card>
 
-            <Card className="border-slate-200 shadow-sm bg-white">
-              <CardHeader className="pb-4 border-b border-slate-100">
-                <CardTitle className="text-base font-semibold text-slate-900">2. Justification & Handover</CardTitle>
-                <CardDescription className="text-xs text-slate-500">
+            {/* SECTION 2: Additional Information */}
+            <Card className="border-[#E5E7EB] shadow-subtle bg-white rounded-xl">
+              <CardHeader className="pb-4 border-b border-[#F1F3F5]">
+                <CardTitle className="text-sm font-bold text-[#111827]">2. Justification & Handover Notes</CardTitle>
+                <CardDescription className="text-xs text-[#64748B]">
                   Provide reason and optional team contact coverage
                 </CardDescription>
               </CardHeader>
-              <CardContent className="pt-6 space-y-5">
+              <CardContent className="pt-5 space-y-5">
                 {/* Reason */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <Label htmlFor="reason" className="text-xs font-semibold text-slate-700">
-                      Reason for Leave <span className="text-rose-500">*</span>
+                    <Label htmlFor="reason" className="text-xs font-semibold text-[#111827]">
+                      Reason for Leave <span className="text-[#991B1B]">*</span>
                     </Label>
-                    <span className="text-[11px] text-slate-400">Min 3 characters</span>
+                    <span className="text-[11px] text-[#64748B]">Min 3 characters</span>
                   </div>
                   <Textarea
                     id="reason"
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
-                    placeholder="Briefly describe the reason for your leave request..."
+                    placeholder="Enter the justification for this leave request..."
                     rows={3}
-                    className="border-slate-200 text-sm resize-none"
+                    className="border-[#E5E7EB] text-sm resize-none focus:border-[#2563EB]"
                   />
                 </div>
 
-                {/* Optional Handover & Emergency Contact */}
+                {/* Handover & Emergency Contact */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="handover" className="text-xs font-semibold text-slate-700">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="handover" className="text-xs font-semibold text-[#111827]">
                       Work Handover Note (Optional)
                     </Label>
                     <Input
                       id="handover"
                       value={handoverNotes}
                       onChange={(e) => setHandoverNotes(e.target.value)}
-                      placeholder="e.g. Rahul covering sprint tasks"
-                      className="border-slate-200 text-sm h-10"
+                      placeholder="e.g. Rahul covering sprint tickets"
+                      className="border-[#E5E7EB] text-sm h-10"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="emergency" className="text-xs font-semibold text-slate-700">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="emergency" className="text-xs font-semibold text-[#111827]">
                       Emergency Phone / Contact (Optional)
                     </Label>
                     <Input
@@ -303,7 +306,7 @@ export default function ApplyLeavePage() {
                       value={emergencyContact}
                       onChange={(e) => setEmergencyContact(e.target.value)}
                       placeholder="e.g. +91 98765 43210"
-                      className="border-slate-200 text-sm h-10"
+                      className="border-[#E5E7EB] text-sm h-10"
                     />
                   </div>
                 </div>
@@ -311,43 +314,44 @@ export default function ApplyLeavePage() {
             </Card>
           </div>
 
-          {/* Right Column: Live Calculation & Summary Card (5 cols) */}
-          <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-20">
-            <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
-              <div className="bg-slate-900 text-white p-5">
+          {/* Right Column: Apple-Style Live Calculation Summary (5 cols) */}
+          <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-20">
+            <Card className="border-[#E5E7EB] shadow-subtle bg-white rounded-xl overflow-hidden">
+              {/* Working Days Callout Header */}
+              <div className="p-5 bg-[#F8FAFC] border-b border-[#E5E7EB]">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-wider text-slate-300 font-semibold">
-                    Live Calculation Preview
+                  <span className="text-xs uppercase tracking-wider text-[#64748B] font-semibold">
+                    Calculated Working Days
                   </span>
-                  <span className="text-xs bg-slate-800 text-blue-300 px-2 py-0.5 rounded font-mono">
+                  <span className="text-xs bg-[#EFF6FF] text-[#2563EB] px-2 py-0.5 rounded-full font-semibold">
                     {dayType.replace(/_/g, ' ')}
                   </span>
                 </div>
                 <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-4xl font-extrabold tabular-nums tracking-tight text-white">
+                  <span className="text-4xl font-extrabold tabular-nums tracking-tight text-[#111827]">
                     {workingDays}
                   </span>
-                  <span className="text-slate-300 font-medium text-sm">Working Day(s)</span>
+                  <span className="text-sm font-medium text-[#475569]">Working Day(s)</span>
                 </div>
                 {durationResult && (
-                  <p className="text-xs text-slate-400 mt-1">
-                    {durationResult.totalCalendarDays} total calendar days ({durationResult.skippedWeekends} weekends, {durationResult.skippedHolidays} holidays exempted)
+                  <p className="text-xs text-[#64748B] mt-1">
+                    {durationResult.totalCalendarDays} calendar day(s) • {durationResult.skippedWeekends} weekend(s) & {durationResult.skippedHolidays} holiday(s) exempted
                   </p>
                 )}
               </div>
 
-              <CardContent className="p-6 space-y-6">
+              <CardContent className="p-5 space-y-5">
                 {/* Balance Impact */}
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Balance Impact</p>
-                  <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                <div className="space-y-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#64748B]">Balance Impact</p>
+                  <div className="grid grid-cols-2 gap-3 p-3 bg-[#F8FAFC] rounded-lg border border-[#E5E7EB]">
                     <div>
-                      <p className="text-[11px] text-slate-500 font-medium">Current Available</p>
-                      <p className="text-lg font-bold text-slate-800 tabular-nums">{availableDays} d</p>
+                      <p className="text-[11px] text-[#64748B] font-medium">Available Balance</p>
+                      <p className="text-lg font-bold text-[#111827] tabular-nums">{availableDays} d</p>
                     </div>
                     <div>
-                      <p className="text-[11px] text-slate-500 font-medium">After Approval</p>
-                      <p className={`text-lg font-bold tabular-nums ${workingDays > availableDays ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      <p className="text-[11px] text-[#64748B] font-medium">Remaining After</p>
+                      <p className={`text-lg font-bold tabular-nums ${workingDays > availableDays && selectedType?.code !== 'UPL' ? 'text-[#991B1B]' : 'text-[#166534]'}`}>
                         {remainingAfterApproval} d
                       </p>
                     </div>
@@ -357,22 +361,20 @@ export default function ApplyLeavePage() {
                 {/* Day-by-Day Breakdown */}
                 {durationResult && durationResult.breakdown.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Calendar Schedule</p>
-                    <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#64748B]">Date Breakdown</p>
+                    <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 text-xs">
                       {durationResult.breakdown.map((item, idx) => (
                         <div
                           key={idx}
-                          className={`flex items-center justify-between py-1.5 px-2.5 rounded-md ${
-                            item.isWorkingDay ? 'bg-blue-50/60 text-blue-900' : 'bg-slate-100 text-slate-500'
+                          className={`flex items-center justify-between py-1.5 px-2.5 rounded-md border ${
+                            item.isWorkingDay
+                              ? 'bg-[#DCFCE7] border-[#BBF7D0] text-[#166534]'
+                              : 'bg-[#F1F5F9] border-[#E5E7EB] text-[#475569]'
                           }`}
                         >
-                          <span className="font-medium font-mono text-[11px]">{item.date}</span>
-                          <span className="text-[11px]">
-                            {item.isWorkingDay ? (
-                              <span className="text-emerald-700 font-semibold">Working Day</span>
-                            ) : (
-                              <span className="text-slate-500 italic">{item.reason || 'Off'}</span>
-                            )}
+                          <span className="font-mono font-medium text-[11px]">{item.date}</span>
+                          <span className="text-[11px] font-semibold">
+                            {item.isWorkingDay ? 'Working Day' : (item.reason || 'Weekly Off')}
                           </span>
                         </div>
                       ))}
@@ -382,32 +384,32 @@ export default function ApplyLeavePage() {
 
                 {/* Approval Route */}
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Approval Chain</p>
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 flex items-center justify-between text-xs font-medium text-slate-700">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#64748B]">Approval Hierarchy</p>
+                  <div className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E5E7EB] flex items-center justify-between text-xs font-medium text-[#334155]">
                     <div className="flex items-center gap-1.5">
-                      <UserCheck className="h-4 w-4 text-blue-600" />
+                      <UserCheck className="h-4 w-4 text-[#2563EB]" />
                       <span>Reporting Manager</span>
                     </div>
-                    <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
+                    <ArrowRight className="h-3.5 w-3.5 text-[#94A3B8]" />
                     <div className="flex items-center gap-1.5">
-                      <Building className="h-4 w-4 text-blue-600" />
-                      <span>HR Department</span>
+                      <Building className="h-4 w-4 text-[#2563EB]" />
+                      <span>HR Sign-Off</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Validation Notice Banner */}
                 {validationError && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 flex items-start gap-2.5 text-xs text-amber-900">
-                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                    <p className="leading-relaxed">{validationError}</p>
+                  <div className="rounded-lg border border-[#FDE68A] bg-[#FEF3C7] p-3 flex items-start gap-2.5 text-xs text-[#92400E]">
+                    <AlertCircle className="h-4 w-4 text-[#92400E] shrink-0 mt-0.5" />
+                    <p className="leading-relaxed font-medium">{validationError}</p>
                   </div>
                 )}
 
                 {!validationError && startDate && endDate && (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 flex items-center gap-2.5 text-xs text-emerald-900 font-medium">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>Application is ready for submission.</span>
+                  <div className="rounded-lg border border-[#BBF7D0] bg-[#DCFCE7] p-3 flex items-center gap-2.5 text-xs text-[#166534] font-medium">
+                    <CheckCircle2 className="h-4 w-4 text-[#166534] shrink-0" />
+                    <span>Application parameters verified and ready to submit.</span>
                   </div>
                 )}
 
@@ -415,12 +417,12 @@ export default function ApplyLeavePage() {
                 <Button
                   type="submit"
                   disabled={!canSubmit}
-                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition-all gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-full h-11 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold rounded-lg shadow-subtle transition-all gap-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {submitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Submitting Application...
+                      Submitting to PostgreSQL...
                     </>
                   ) : (
                     <>

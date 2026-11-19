@@ -1,7 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 
 export interface LeaveBalanceCardProps {
   leaveTypeName: string;
@@ -30,7 +29,7 @@ export function LeaveBalanceCard({
   return (
     <Card
       className={cn(
-        "rounded-2xl border border-slate-200/80 bg-white transition-all duration-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-800 dark:bg-slate-900",
+        "rounded-xl border border-[#E5E7EB] bg-white transition-all duration-150 hover:border-[#D1D5DB] shadow-subtle",
         className
       )}
     >
@@ -42,11 +41,11 @@ export function LeaveBalanceCard({
               className="h-2.5 w-2.5 rounded-full shrink-0"
               style={{ backgroundColor: color }}
             />
-            <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate max-w-[160px]">
+            <h4 className="font-bold text-xs uppercase tracking-wider text-[#111827] truncate max-w-[160px]">
               {leaveTypeName}
             </h4>
           </div>
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <span className="text-xs font-medium text-[#64748B]">
             {usedPercentage}% used
           </span>
         </div>
@@ -54,35 +53,39 @@ export function LeaveBalanceCard({
         {/* Numbers: Available / Total */}
         <div className="flex items-baseline justify-between mb-3">
           <div>
-            <span className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+            <span className="text-3xl font-bold tracking-tight text-[#111827] tabular-nums">
               {available}
             </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 ml-1.5 font-normal">
+            <span className="text-xs text-[#64748B] ml-1.5 font-normal">
               / {total} {unit}
             </span>
           </div>
-          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300">
-            Active Quota
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]">
+            Available Quota
           </span>
         </div>
 
         {/* Apple-style thin Progress bar */}
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#F1F3F5]">
           <div
             className="h-full rounded-full transition-all duration-300"
             style={{
               width: `${usedPercentage}%`,
-              backgroundColor: color,
+              backgroundColor: usedPercentage > 85 ? "#DC2626" : color,
             }}
           />
         </div>
 
         {/* Sub-breakdown footer */}
-        <div className="mt-3.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
-          <span>Used: <strong className="font-semibold text-slate-700 dark:text-slate-300">{calculatedUsed} {unit}</strong></span>
-          {pending > 0 && (
-            <span className="text-amber-700 dark:text-amber-400 font-medium">
-              Pending: {pending} {unit}
+        <div className="mt-3.5 flex items-center justify-between text-xs text-[#64748B] border-t border-[#F1F3F5] pt-2.5">
+          <span>Used: <strong className="font-semibold text-[#111827]">{calculatedUsed} {unit}</strong></span>
+          {pending > 0 ? (
+            <span className="text-[#92400E] font-medium">
+              Pending: <strong>{pending} {unit}</strong>
+            </span>
+          ) : (
+            <span className="text-[#166534] font-medium">
+              Ready to apply
             </span>
           )}
         </div>

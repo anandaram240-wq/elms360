@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Menu,
   Bell,
@@ -9,14 +10,12 @@ import {
   User,
   Settings,
   LogOut,
-  Wifi,
-  WifiOff,
-  CheckCircle2,
+  ChevronRight,
+  ShieldCheck,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,12 +25,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 export type ConnectionStatus = "connected" | "reconnecting" | "disconnected";
 
@@ -61,98 +54,126 @@ export function Header({
   user = { name: "Ananda K", email: "ananda@abctech.com", role: "EMPLOYEE" },
   onSignOut,
 }: HeaderProps) {
+  const pathname = usePathname();
+
+  // Generate clean breadcrumb labels
+  const segments = pathname.split("/").filter(Boolean);
+  const portalSection = segments[0] ? segments[0].toUpperCase() : "PORTAL";
+  const pageLabel = segments[1]
+    ? segments[1]
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ")
+    : "Overview";
+
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80 sm:px-6">
-      {/* Left side: Hamburger button + Page Title */}
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-[#E5E7EB] bg-white px-4 sm:px-6">
+      {/* Left side: Hamburger button + Breadcrumb */}
+      <div className="flex items-center gap-3 min-w-0">
         <Button
           variant="ghost"
           size="icon"
           onClick={onOpenMobileMenu}
-          className="lg:hidden h-8 w-8 text-slate-500 hover:text-slate-900 rounded-lg"
+          className="lg:hidden h-8 w-8 text-[#64748B] hover:text-[#111827] rounded-lg"
           aria-label="Open mobile menu"
         >
           <Menu className="h-4 w-4" />
         </Button>
-        <h1 className="text-base sm:text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100 truncate">
-          {title}
-        </h1>
+
+        {/* Clean Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-xs text-[#64748B] truncate">
+          <span className="font-semibold text-[#111827] hidden sm:inline">
+            {portalSection}
+          </span>
+          <ChevronRight className="h-3 w-3 text-[#94A3B8] hidden sm:inline" />
+          <span className="font-semibold text-[#111827] sm:text-sm text-xs truncate">
+            {title || pageLabel}
+          </span>
+        </div>
       </div>
 
       {/* Right side controls */}
-      <div className="flex items-center gap-2 sm:gap-3">
-        {/* Subtle Sync Indicator */}
-        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100/80 border border-slate-200/60 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Realtime Synced</span>
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Authoritative PostgreSQL Sync Indicator */}
+        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F1F3F5] border border-[#E5E7EB] text-[11px] font-medium text-[#334155]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#166534]" />
+          <span>PostgreSQL Authoritative</span>
         </div>
 
-        {/* Notifications Button */}
+        {/* Notifications Icon */}
         <Button
           variant="ghost"
           size="icon"
           onClick={onOpenNotifications}
-          className="relative h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg dark:text-slate-400 dark:hover:text-slate-100"
+          className="relative h-8 w-8 text-[#64748B] hover:text-[#111827] hover:bg-[#F1F3F5] rounded-lg"
           aria-label="Notifications"
         >
           <Bell className="h-4 w-4" />
           {unreadNotificationsCount > 0 && (
-            <span className="absolute top-1 right-1 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
+            <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2563EB] opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#2563EB]" />
             </span>
           )}
         </Button>
 
-        {/* User Dropdown Menu */}
+        {/* User Profile Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-              <Avatar className="h-8 w-8 border border-slate-200 dark:border-slate-700">
+            <Button
+              variant="ghost"
+              className="flex items-center gap-2 pl-1.5 pr-2 py-1 h-8 rounded-full hover:bg-[#F1F3F5]"
+            >
+              <Avatar className="h-7 w-7 border border-[#E5E7EB]">
                 {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-                <AvatarFallback className="bg-blue-100 text-blue-800 text-xs font-semibold dark:bg-blue-950 dark:text-blue-300">
-                  {(user?.name || "User")
+                <AvatarFallback className="bg-[#EFF6FF] text-[#2563EB] text-xs font-semibold">
+                  {(user?.name || "U")
                     .split(" ")
                     .filter(Boolean)
                     .map((n) => n[0])
                     .join("")
                     .slice(0, 2)
-                    .toUpperCase() || "U"}
+                    .toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-            </button>
+              <span className="text-xs font-semibold text-[#111827] hidden sm:inline max-w-[120px] truncate">
+                {user.name}
+              </span>
+            </Button>
           </DropdownMenuTrigger>
-
           <DropdownMenuContent
             align="end"
-            className="w-56 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.08)] dark:border-slate-800 dark:bg-slate-900"
+            className="w-56 rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-dropdown text-[#111827]"
           >
-            <DropdownMenuLabel className="px-3 py-2 font-normal">
-              <div className="flex flex-col space-y-0.5">
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{user?.name || "Employee"}</p>
-                <p className="text-xs text-slate-500 truncate dark:text-slate-400">{user?.email || ""}</p>
-              </div>
+            <DropdownMenuLabel className="px-3 py-2">
+              <p className="text-xs font-semibold text-[#111827] truncate">{user.name}</p>
+              {user.email && (
+                <p className="text-[11px] font-normal text-[#64748B] truncate">{user.email}</p>
+              )}
+              <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB]">
+                {user.role || "EMPLOYEE"}
+              </span>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator className="my-1 bg-slate-100 dark:bg-slate-800" />
-            <DropdownMenuItem asChild className="rounded-xl px-3 py-2 text-xs font-medium cursor-pointer text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
-              <Link href="/employee/profile" className="flex items-center gap-2">
-                <User className="h-3.5 w-3.5 text-slate-500" />
+            <DropdownMenuSeparator className="bg-[#E5E7EB]" />
+            <DropdownMenuItem asChild className="rounded-lg text-xs hover:bg-[#F1F3F5] cursor-pointer">
+              <Link href="/employee/profile" className="flex items-center gap-2 w-full px-3 py-2 text-[#334155]">
+                <User className="h-3.5 w-3.5 text-[#64748B]" />
                 <span>My Profile</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="rounded-xl px-3 py-2 text-xs font-medium cursor-pointer text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
-              <Link href="/employee/notifications" className="flex items-center gap-2">
-                <Bell className="h-3.5 w-3.5 text-slate-500" />
-                <span>Notifications</span>
+            <DropdownMenuItem asChild className="rounded-lg text-xs hover:bg-[#F1F3F5] cursor-pointer">
+              <Link href="/employee/my-leaves" className="flex items-center gap-2 w-full px-3 py-2 text-[#334155]">
+                <ShieldCheck className="h-3.5 w-3.5 text-[#64748B]" />
+                <span>My Applications</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="my-1 bg-slate-100 dark:bg-slate-800" />
+            <DropdownMenuSeparator className="bg-[#E5E7EB]" />
             <DropdownMenuItem
               onClick={onSignOut}
-              className="rounded-xl px-3 py-2 text-xs font-medium cursor-pointer text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 flex items-center gap-2"
+              className="rounded-lg text-xs text-[#991B1B] hover:bg-[#FEE2E2] hover:text-[#991B1B] px-3 py-2 cursor-pointer flex items-center gap-2"
             >
               <LogOut className="h-3.5 w-3.5" />
-              <span>Sign Out</span>
+              <span>Sign out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

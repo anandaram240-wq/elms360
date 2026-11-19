@@ -72,7 +72,7 @@ export function NotificationPanel({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
 
@@ -82,26 +82,26 @@ export function NotificationPanel({
         aria-modal="true"
         aria-label="Notifications panel"
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l bg-background shadow-2xl transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-[#E5E7EB] bg-white shadow-modal transition-transform duration-180 ease-in-out",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* Panel Header */}
-        <div className="flex h-16 items-center justify-between border-b px-4 sm:px-6">
+        <div className="flex h-16 items-center justify-between border-b border-[#E5E7EB] px-4 sm:px-6">
           <div className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-foreground" />
-            <h2 className="font-semibold text-foreground">Notifications</h2>
+            <Bell className="h-5 w-5 text-[#111827]" />
+            <h2 className="font-bold text-sm text-[#111827]">Notifications</h2>
             {unreadCount > 0 && (
-              <Badge variant="secondary" className="text-xs px-2 py-0.5">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] font-semibold border border-[#BFDBFE]">
                 {unreadCount} new
-              </Badge>
+              </span>
             )}
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 text-[#64748B] hover:text-[#111827] rounded-lg"
             aria-label="Close notifications panel"
           >
             <X className="h-4 w-4" />

@@ -14,6 +14,7 @@ export interface StatsCardProps {
     period?: string;
   };
   className?: string;
+  badge?: string;
 }
 
 export function StatsCard({
@@ -23,43 +24,51 @@ export function StatsCard({
   icon: Icon,
   change,
   className,
+  badge,
 }: StatsCardProps) {
   return (
     <Card
       className={cn(
-        "rounded-2xl border border-slate-200/80 bg-white transition-all duration-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-800 dark:bg-slate-900",
+        "rounded-xl border border-slate-200/90 bg-white transition-all duration-150 hover:border-slate-300 hover:shadow-card",
         className
       )}
     >
       <CardContent className="p-5">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">
             {title}
           </p>
-          {Icon && (
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-              <Icon className="h-4 w-4" />
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {badge && (
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                {badge}
+              </span>
+            )}
+            {Icon && (
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 border border-slate-100 text-slate-600">
+                <Icon className="h-4 w-4" />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+          <span className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 tabular-nums">
             {value}
           </span>
         </div>
 
         {(change || description) && (
-          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-slate-500">
             {change && (
               <span
                 className={cn(
                   "inline-flex items-center font-medium rounded-full px-2 py-0.5",
                   change.type === "increase"
-                    ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400"
+                    ? "text-emerald-800 bg-[#DCFCE7]"
                     : change.type === "decrease"
-                    ? "text-rose-700 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-400"
-                    : "text-slate-600 bg-slate-50 dark:bg-slate-800"
+                    ? "text-red-800 bg-[#FEE2E2]"
+                    : "text-slate-700 bg-slate-100"
                 )}
               >
                 {change.type === "increase" ? (

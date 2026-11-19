@@ -133,7 +133,7 @@ export function PendingApprovalsPreview({
           {requests.map((req) => (
             <div
               key={req.id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 rounded-lg border bg-card/60 hover:bg-muted/40 transition-colors"
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 rounded-xl border border-[#E5E7EB] bg-white hover:bg-[#F8FAFC] transition-colors"
             >
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2 flex-wrap">

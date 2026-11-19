@@ -51,37 +51,33 @@ export default async function ManagerDashboardPage() {
         <StatsCard
           title="Pending Approvals"
           value={data.stats.pendingApprovals}
-          description="Awaiting your decision"
+          description="Awaiting your review"
           icon={CheckSquare}
-          className="border-amber-200 dark:border-amber-900/50 bg-amber-50/20 dark:bg-amber-950/10"
+          badge={data.stats.pendingApprovals > 0 ? "Action Required" : undefined}
         />
         <StatsCard
           title="Approved This Month"
           value={data.stats.approvedThisMonth}
           description="In current calendar month"
           icon={CheckCircle2}
-          className="border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/20 dark:bg-emerald-950/10"
         />
         <StatsCard
           title="Rejected This Month"
           value={data.stats.rejectedThisMonth}
           description="In current calendar month"
           icon={XCircle}
-          className="border-rose-200 dark:border-rose-900/50 bg-rose-50/20 dark:bg-rose-950/10"
         />
         <StatsCard
           title="On Leave Today"
           value={data.stats.onLeaveTodayCount}
           description="Currently out of office"
           icon={UserX}
-          className="border-blue-200 dark:border-blue-900/50 bg-blue-50/20 dark:bg-blue-950/10"
         />
         <StatsCard
           title="Upcoming Absences"
           value={data.stats.upcomingAbsences7Days}
-          description="Next 7 days"
+          description="Next 7 days schedule"
           icon={CalendarDays}
-          className="border-purple-200 dark:border-purple-900/50 bg-purple-50/20 dark:bg-purple-950/10"
         />
       </div>
 
@@ -117,10 +113,10 @@ export default async function ManagerDashboardPage() {
                   return (
                     <div
                       key={day.date}
-                      className={`flex flex-col items-center p-3 rounded-lg border text-center transition-all ${
+                      className={`flex flex-col items-center p-3 rounded-xl border text-center transition-all ${
                         isToday
-                          ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
-                          : 'bg-card/50'
+                          ? 'border-[#2563EB] bg-[#EFF6FF] ring-1 ring-[#2563EB]/20'
+                          : 'border-[#E5E7EB] bg-white'
                       }`}
                     >
                       <span className="text-[11px] font-semibold text-muted-foreground uppercase">
@@ -246,7 +242,7 @@ export default async function ManagerDashboardPage() {
                   {data.upcomingAbsences.map((abs) => (
                     <div
                       key={abs.id}
-                      className="flex items-center justify-between text-xs p-2.5 rounded-md border bg-card/60"
+                      className="flex items-center justify-between text-xs p-2.5 rounded-lg border border-[#E5E7EB] bg-white"
                     >
                       <div className="space-y-0.5">
                         <p className="font-semibold text-foreground">{abs.employeeName}</p>

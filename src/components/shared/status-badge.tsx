@@ -3,10 +3,10 @@ import {
   Check,
   X,
   Clock,
-  Minus,
   HelpCircle,
   AlertCircle,
   FileText,
+  Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,44 +27,47 @@ export type LeaveStatus =
 export interface LeaveStatusBadgeProps {
   status: LeaveStatus | string;
   className?: string;
+  showIcon?: boolean;
 }
 
-export function LeaveStatusBadge({ status, className }: LeaveStatusBadgeProps) {
+export function LeaveStatusBadge({
+  status,
+  className,
+  showIcon = true,
+}: LeaveStatusBadgeProps) {
   const normalized = (status || "").toUpperCase();
 
-  // 1. APPROVED
+  // 1. APPROVED (#DCFCE7 / #166534)
   if (normalized === "APPROVED") {
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+          "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#DCFCE7] text-[#166534] border border-[#bbf7d0]",
           className
         )}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
-        <Check className="h-3 w-3 text-emerald-700 dark:text-emerald-300 stroke-[2.5]" />
+        {showIcon && <Check className="h-3 w-3 stroke-[2.5]" />}
         <span>Approved</span>
       </span>
     );
   }
 
-  // 2. REJECTED
+  // 2. REJECTED (#FEE2E2 / #991B1B)
   if (normalized === "REJECTED") {
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-800 border border-red-200/80 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800",
+          "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#FEE2E2] text-[#991B1B] border border-[#fecaca]",
           className
         )}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-red-600 dark:bg-red-400" />
-        <X className="h-3 w-3 text-red-700 dark:text-red-300 stroke-[2.5]" />
+        {showIcon && <X className="h-3 w-3 stroke-[2.5]" />}
         <span>Rejected</span>
       </span>
     );
   }
 
-  // 3. PENDING (Manager, HR, or general)
+  // 3. PENDING (#FEF3C7 / #92400E)
   if (
     normalized.startsWith("PENDING") ||
     normalized === "PENDING_MANAGER_APPROVAL" ||
@@ -80,73 +83,71 @@ export function LeaveStatusBadge({ status, className }: LeaveStatusBadgeProps) {
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+          "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#FEF3C7] text-[#92400E] border border-[#fde68a]",
           className
         )}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-600 dark:bg-amber-400" />
-        <Clock className="h-3 w-3 text-amber-700 dark:text-amber-300 stroke-[2]" />
+        {showIcon && <Clock className="h-3 w-3 stroke-[2]" />}
         <span>{label}</span>
       </span>
     );
   }
 
-  // 4. CLARIFICATION REQUESTED
+  // 4. CLARIFICATION REQUESTED (#F3E8FF / #6B21A8)
   if (normalized === "CLARIFICATION_REQUESTED") {
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200/80 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800",
+          "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F3E8FF] text-[#6B21A8] border border-[#e9d5ff]",
           className
         )}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />
-        <HelpCircle className="h-3 w-3 text-blue-700 dark:text-blue-300" />
-        <span>Clarification Requested</span>
+        {showIcon && <HelpCircle className="h-3 w-3 stroke-[2]" />}
+        <span>Clarification</span>
       </span>
     );
   }
 
-  // 5. WITHDRAWN
-  if (normalized === "WITHDRAWN") {
+  // 5. WITHDRAWN / CANCELLED / DRAFT (#F1F5F9 / #334155)
+  if (
+    normalized === "WITHDRAWN" ||
+    normalized.startsWith("CANCELLED") ||
+    normalized === "DRAFT"
+  ) {
+    const label = normalized.startsWith("CANCELLED")
+      ? "Cancelled"
+      : normalized === "WITHDRAWN"
+      ? "Withdrawn"
+      : "Draft";
+
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+          "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#F1F5F9] text-[#334155] border border-[#e2e8f0]",
           className
         )}
       >
-        <Minus className="h-3 w-3 text-slate-500" />
-        <span>Withdrawn</span>
+        {showIcon && (
+          normalized === "DRAFT" ? (
+            <FileText className="h-3 w-3" />
+          ) : (
+            <Minus className="h-3 w-3 stroke-[2]" />
+          )
+        )}
+        <span>{label}</span>
       </span>
     );
   }
 
-  // 6. CANCELLED
-  if (normalized.startsWith("CANCELLED")) {
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
-          className
-        )}
-      >
-        <AlertCircle className="h-3 w-3 text-slate-500" />
-        <span>Cancelled</span>
-      </span>
-    );
-  }
-
-  // 7. DRAFT / Default
+  // Fallback Neutral
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
+        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#F1F5F9] text-[#334155] border border-[#e2e8f0]",
         className
       )}
     >
-      <FileText className="h-3 w-3 text-slate-400" />
-      <span>{status || "Draft"}</span>
+      <span>{status || "Unknown"}</span>
     </span>
   );
 }

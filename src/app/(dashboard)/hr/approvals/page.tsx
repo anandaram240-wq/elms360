@@ -13,11 +13,11 @@ import {
   RotateCcw,
   Eye,
   FileSpreadsheet,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { LeaveStatusBadge } from '@/components/shared/status-badge'
 import { useElmsStore, LeaveRequestRecord } from '@/lib/store/elms-store'
 
 export default function HrApprovalsPage() {
@@ -85,7 +86,7 @@ export default function HrApprovalsPage() {
     if (!approveTargetId) return
     const res = await hrFinalApprove(approveTargetId, approveComment.trim() || undefined)
     if (res.success) {
-      toast.success('Final HR approval granted! Leave balance permanently deducted and ledger updated.')
+      toast.success('Final HR approval granted! Leave balance permanently deducted in PostgreSQL.')
       setApproveTargetId(null)
       setApproveComment('')
     } else {
@@ -102,7 +103,7 @@ export default function HrApprovalsPage() {
     }
     const res = await hrReject(rejectTargetId, rejectReason.trim())
     if (res.success) {
-      toast.success('Leave request rejected by HR. Reserved balance released back to employee.')
+      toast.success('Leave application rejected. Reserved balance restored.')
       setRejectTargetId(null)
       setRejectReason('')
     } else {
@@ -110,16 +111,16 @@ export default function HrApprovalsPage() {
     }
   }
 
-  // Handle Cancel
+  // Handle HR Cancel
   const handleConfirmCancel = async () => {
     if (!cancelTargetId) return
     if (cancelReason.trim().length < 3) {
-      toast.error('Please enter cancellation reason (minimum 3 characters)')
+      toast.error('Please enter a cancellation reason')
       return
     }
     const res = await cancelApprovedLeave(cancelTargetId, cancelReason.trim())
     if (res.success) {
-      toast.success('Approved leave cancelled. Balance refunded to employee with reversal ledger entry.')
+      toast.success('Approved leave cancelled. Balance restored to employee.')
       setCancelTargetId(null)
       setCancelReason('')
     } else {
@@ -129,41 +130,41 @@ export default function HrApprovalsPage() {
 
   return (
     <div className="space-y-6 pb-16">
-      {/* Page Header */}
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">HR Approval & Leave Governance</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Perform final HR approval, audit organizational leave requests, and process cancellations.
+          <h1 className="text-2xl font-bold tracking-tight text-[#111827]">Organization Leave Requests</h1>
+          <p className="text-sm text-[#475569] mt-1">
+            Review manager-approved applications, grant final HR authorization, or manage historical records.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs font-semibold py-1 px-3 border-blue-200 bg-blue-50 text-blue-800">
-            {pendingHrRequests.length} Pending HR Sign-off
-          </Badge>
+          <span className="text-xs font-semibold py-1 px-3 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">
+            {pendingHrRequests.length} Pending HR Sign-Off
+          </span>
         </div>
       </div>
 
-      {/* Tabs & Filters */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      {/* Tabs & Search Filter Strip */}
+      <div className="bg-white p-4 rounded-xl border border-[#E5E7EB] shadow-subtle space-y-3.5">
+        <div className="flex items-center justify-between border-b border-[#F1F3F5] pb-3">
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('PENDING_HR')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === 'PENDING_HR'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  ? 'bg-[#2563EB] text-white shadow-xs'
+                  : 'text-[#475569] hover:bg-[#F1F3F5] hover:text-[#111827]'
               }`}
             >
               Pending HR Final Approval ({pendingHrRequests.length})
             </button>
             <button
               onClick={() => setActiveTab('ALL_REQUESTS')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === 'ALL_REQUESTS'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  ? 'bg-[#2563EB] text-white shadow-xs'
+                  : 'text-[#475569] hover:bg-[#F1F3F5] hover:text-[#111827]'
               }`}
             >
               All Organization Requests ({allRequests.length})
@@ -174,35 +175,36 @@ export default function HrApprovalsPage() {
         {/* Filter Bar */}
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94A3B8]" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by employee name, request #, or category..."
-              className="pl-9 h-9 border-slate-200 text-xs"
+              placeholder="Search by employee name, request #, or leave category..."
+              className="pl-9 h-9 border-[#E5E7EB] text-xs bg-white text-[#111827]"
             />
           </div>
 
           <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-            <SelectTrigger className="w-full sm:w-44 h-9 border-slate-200 text-xs">
+            <SelectTrigger className="w-full sm:w-44 h-9 border-[#E5E7EB] text-xs bg-white text-[#111827]">
               <SelectValue placeholder="All Departments" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-white border-[#E5E7EB] text-[#111827]">
               <SelectItem value="ALL">All Departments</SelectItem>
               <SelectItem value="Engineering">Engineering</SelectItem>
               <SelectItem value="Human Resources">Human Resources</SelectItem>
               <SelectItem value="Finance">Finance</SelectItem>
               <SelectItem value="Marketing">Marketing</SelectItem>
-              <SelectItem value="Operations">Operations</SelectItem>
+              <SelectItem value="Sales">Sales</SelectItem>
+              <SelectItem value="Customer Support">Customer Support</SelectItem>
             </SelectContent>
           </Select>
 
           {activeTab === 'ALL_REQUESTS' && (
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-44 h-9 border-slate-200 text-xs">
+              <SelectTrigger className="w-full sm:w-44 h-9 border-[#E5E7EB] text-xs bg-white text-[#111827]">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white border-[#E5E7EB] text-[#111827]">
                 <SelectItem value="ALL">All Statuses</SelectItem>
                 <SelectItem value="APPROVED">Approved</SelectItem>
                 <SelectItem value="PENDING_HR_APPROVAL">Pending HR</SelectItem>
@@ -216,10 +218,10 @@ export default function HrApprovalsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-subtle overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+            <thead className="bg-[#F8FAFC] border-b border-[#E5E7EB] text-[#475569] font-semibold uppercase tracking-wider text-[11px]">
               <tr>
                 <th className="py-3 px-4">Employee</th>
                 <th className="py-3 px-4">Request #</th>
@@ -231,27 +233,27 @@ export default function HrApprovalsPage() {
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
+            <tbody className="divide-y divide-[#E5E7EB] text-[#334155]">
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-400">
-                    <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-emerald-400" />
-                    <p className="font-medium text-slate-700">No requests found in this queue.</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                  <td colSpan={8} className="text-center py-12 text-[#94A3B8]">
+                    <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-[#166534]" />
+                    <p className="font-semibold text-xs text-[#111827]">No requests found in this queue.</p>
+                    <p className="text-[11px] text-[#64748B] mt-0.5">
                       {activeTab === 'PENDING_HR' ? 'All Manager-approved leaves have been finalized.' : 'Try adjusting your search filters.'}
                     </p>
                   </td>
                 </tr>
               ) : (
                 filteredData.map((req) => (
-                  <tr key={req.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4 font-medium text-slate-900">
+                  <tr key={req.id} className="hover:bg-[#F8FAFC] transition-colors">
+                    <td className="py-3.5 px-4 font-medium text-[#111827]">
                       <div>
-                        <p className="font-semibold text-slate-900">{req.employee_name}</p>
-                        <p className="text-[10px] text-slate-400">{req.department_name}</p>
+                        <p className="font-semibold text-[#111827]">{req.employee_name}</p>
+                        <p className="text-[10px] text-[#64748B]">{req.department_name}</p>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 font-mono font-semibold text-blue-600">
+                    <td className="py-3.5 px-4 font-mono font-semibold text-[#2563EB]">
                       <button
                         onClick={() => setSelectedRequest(req)}
                         className="hover:underline text-left cursor-pointer"
@@ -259,36 +261,22 @@ export default function HrApprovalsPage() {
                         {req.request_number}
                       </button>
                     </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-800">
+                    <td className="py-3.5 px-4 font-medium text-[#111827]">
                       {req.leave_type_name}
                     </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-700 whitespace-nowrap">
+                    <td className="py-3.5 px-4 text-[#475569] whitespace-nowrap">
                       {req.start_date} → {req.end_date}
                     </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900 tabular-nums">
+                    <td className="py-3.5 px-4 font-bold text-[#111827] tabular-nums">
                       {req.total_days} d
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded">
+                      <span className="text-[11px] text-[#166534] font-semibold bg-[#DCFCE7] px-2 py-0.5 rounded-full border border-[#BBF7D0]">
                         ✓ Approved by Mgr
                       </span>
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                          req.status === 'APPROVED'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : req.status === 'PENDING_HR_APPROVAL'
-                            ? 'bg-blue-100 text-blue-800'
-                            : req.status === 'PENDING_MANAGER_APPROVAL'
-                            ? 'bg-amber-100 text-amber-800'
-                            : req.status === 'REJECTED'
-                            ? 'bg-rose-100 text-rose-800'
-                            : 'bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        {req.status.replace(/_/g, ' ')}
-                      </span>
+                      <LeaveStatusBadge status={req.status} />
                     </td>
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
@@ -296,34 +284,27 @@ export default function HrApprovalsPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => setSelectedRequest(req)}
-                          className="h-8 px-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 text-xs gap-1"
+                          className="h-8 px-2 text-[#2563EB] hover:bg-[#EFF6FF] text-xs gap-1"
                         >
                           <Eye className="h-3.5 w-3.5" />
-                          View
+                          Details
                         </Button>
 
-                        {/* HR Actions for Pending HR Requests */}
                         {req.status === 'PENDING_HR_APPROVAL' && (
                           <>
                             <Button
                               size="sm"
-                              onClick={() => {
-                                setApproveTargetId(req.id)
-                                setApproveComment('')
-                              }}
-                              className="h-8 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1 font-semibold"
+                              onClick={() => setApproveTargetId(req.id)}
+                              className="h-8 px-2.5 bg-[#166534] hover:bg-[#14532D] text-white text-xs gap-1 font-semibold"
                             >
                               <Check className="h-3.5 w-3.5" />
                               Final Approve
                             </Button>
                             <Button
-                              size="sm"
                               variant="outline"
-                              onClick={() => {
-                                setRejectTargetId(req.id)
-                                setRejectReason('')
-                              }}
-                              className="h-8 px-2 text-rose-600 hover:bg-rose-50 border-rose-200 text-xs gap-1"
+                              size="sm"
+                              onClick={() => setRejectTargetId(req.id)}
+                              className="h-8 px-2 border-[#FEE2E2] bg-[#FEF2F2] text-[#991B1B] hover:bg-[#FEE2E2] text-xs gap-1 font-semibold"
                             >
                               <X className="h-3.5 w-3.5" />
                               Reject
@@ -331,19 +312,15 @@ export default function HrApprovalsPage() {
                           </>
                         )}
 
-                        {/* Process Cancellation for Approved Leaves */}
                         {req.status === 'APPROVED' && (
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              setCancelTargetId(req.id)
-                              setCancelReason('')
-                            }}
-                            className="h-8 px-2 text-slate-600 hover:bg-slate-100 text-xs gap-1"
+                            onClick={() => setCancelTargetId(req.id)}
+                            className="h-8 px-2 text-[#475569] hover:bg-[#F1F3F5] text-xs gap-1"
                           >
                             <RotateCcw className="h-3.5 w-3.5" />
-                            Cancel Leave
+                            Admin Cancel
                           </Button>
                         )}
                       </div>
@@ -356,161 +333,207 @@ export default function HrApprovalsPage() {
         </div>
       </div>
 
-      {/* HR Final Approve Modal */}
-      <Dialog open={Boolean(approveTargetId)} onOpenChange={() => setApproveTargetId(null)}>
-        <DialogContent className="max-w-md bg-white border-slate-200">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900">Final HR Approval</DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Granting final approval will permanently deduct leave days from the employee's balance and generate an immutable ledger entry.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-2 space-y-2">
-            <Label htmlFor="hrNotes" className="text-xs font-semibold text-slate-700">
-              HR Approval Note / Reference (Optional)
-            </Label>
-            <Textarea
-              id="hrNotes"
-              value={approveComment}
-              onChange={(e) => setApproveComment(e.target.value)}
-              placeholder="e.g. Official HR sign-off completed..."
-              rows={2}
-              className="text-xs"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setApproveTargetId(null)}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleConfirmApprove} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
-              Grant Final Approval
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* HR Reject Modal */}
-      <Dialog open={Boolean(rejectTargetId)} onOpenChange={() => setRejectTargetId(null)}>
-        <DialogContent className="max-w-md bg-white border-slate-200">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900">Reject Application (HR)</DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Specify the HR policy reason for rejecting this request. Reserved days will be refunded to the employee.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-2 space-y-2">
-            <Label htmlFor="hrRejectReason" className="text-xs font-semibold text-slate-700">
-              Rejection Reason <span className="text-rose-500">*</span>
-            </Label>
-            <Textarea
-              id="hrRejectReason"
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="e.g. Leave policy non-compliance, missing medical document..."
-              rows={3}
-              className="text-xs"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setRejectTargetId(null)}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleConfirmReject} className="bg-rose-600 hover:bg-rose-700 text-white font-semibold">
-              Confirm Rejection
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* HR Cancel Modal */}
-      <Dialog open={Boolean(cancelTargetId)} onOpenChange={() => setCancelTargetId(null)}>
-        <DialogContent className="max-w-md bg-white border-slate-200">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900">Process Leave Cancellation (HR)</DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Cancelling this approved leave will automatically refund the deducted days back to the employee's available balance via a reversal ledger entry.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-2 space-y-2">
-            <Label htmlFor="hrCancelReason" className="text-xs font-semibold text-slate-700">
-              Cancellation Justification <span className="text-rose-500">*</span>
-            </Label>
-            <Textarea
-              id="hrCancelReason"
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              placeholder="e.g. Employee requested cancellation due to cancelled conference..."
-              rows={3}
-              className="text-xs"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setCancelTargetId(null)}>
-              Dismiss
-            </Button>
-            <Button size="sm" onClick={handleConfirmCancel} className="bg-rose-600 hover:bg-rose-700 text-white font-semibold">
-              Refund & Cancel Leave
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Request Details Modal */}
+      {/* Details Dialog */}
       {selectedRequest && (
-        <Dialog open={Boolean(selectedRequest)} onOpenChange={() => setSelectedRequest(null)}>
-          <DialogContent className="max-w-lg bg-white border-slate-200">
-            <DialogHeader className="border-b border-slate-100 pb-3">
+        <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
+          <DialogContent className="max-w-lg bg-white border-[#E5E7EB] text-[#111827] rounded-2xl shadow-modal">
+            <DialogHeader>
               <div className="flex items-center justify-between">
-                <DialogTitle className="text-base font-bold text-slate-900 font-mono">
-                  {selectedRequest.request_number}
+                <DialogTitle className="text-base font-bold text-[#111827]">
+                  Leave Request {selectedRequest.request_number}
                 </DialogTitle>
-                <Badge variant="outline">{selectedRequest.status.replace(/_/g, ' ')}</Badge>
+                <LeaveStatusBadge status={selectedRequest.status} />
               </div>
-              <DialogDescription className="text-xs text-slate-500">
-                Submitted by {selectedRequest.employee_name} ({selectedRequest.department_name})
+              <DialogDescription className="text-xs text-[#64748B]">
+                Employee: {selectedRequest.employee_name} ({selectedRequest.department_name})
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-2 text-xs">
-              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg">
+            <div className="space-y-4 text-xs py-2">
+              <div className="grid grid-cols-2 gap-3 p-3 bg-[#F8FAFC] rounded-lg border border-[#E5E7EB]">
                 <div>
-                  <p className="text-slate-400 font-medium">Leave Type</p>
-                  <p className="font-semibold text-slate-800 mt-0.5">{selectedRequest.leave_type_name}</p>
+                  <span className="text-[#64748B] block">Leave Category</span>
+                  <span className="font-semibold text-[#111827]">{selectedRequest.leave_type_name}</span>
                 </div>
                 <div>
-                  <p className="text-slate-400 font-medium">Duration</p>
-                  <p className="font-semibold text-slate-800 mt-0.5">{selectedRequest.total_days} working days</p>
+                  <span className="text-[#64748B] block">Duration</span>
+                  <span className="font-semibold text-[#111827]">{selectedRequest.total_days} Working Day(s)</span>
                 </div>
                 <div>
-                  <p className="text-slate-400 font-medium">Schedule</p>
-                  <p className="font-semibold text-slate-800 mt-0.5">{selectedRequest.start_date} → {selectedRequest.end_date}</p>
+                  <span className="text-[#64748B] block">Start Date</span>
+                  <span className="font-semibold text-[#111827]">{selectedRequest.start_date}</span>
                 </div>
                 <div>
-                  <p className="text-slate-400 font-medium">Day Schedule</p>
-                  <p className="font-semibold text-slate-800 mt-0.5">{selectedRequest.day_type.replace(/_/g, ' ')}</p>
+                  <span className="text-[#64748B] block">End Date</span>
+                  <span className="font-semibold text-[#111827]">{selectedRequest.end_date}</span>
                 </div>
               </div>
 
               <div>
-                <p className="text-slate-400 font-medium">Employee Justification</p>
-                <p className="mt-1 p-2.5 bg-slate-50 rounded border border-slate-100 text-slate-700 leading-relaxed">
-                  {selectedRequest.reason}
+                <span className="text-[#64748B] block font-semibold mb-1">Reason for Absence</span>
+                <p className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E5E7EB] text-[#334155]">
+                  {selectedRequest.reason || 'None provided'}
                 </p>
               </div>
 
               {selectedRequest.handover_notes && (
                 <div>
-                  <p className="text-slate-400 font-medium">Handover & Contact Notes</p>
-                  <p className="mt-1 p-2.5 bg-slate-50 rounded border border-slate-100 text-slate-700">
+                  <span className="text-[#64748B] block font-semibold mb-1">Handover Notes</span>
+                  <p className="p-3 bg-[#F8FAFC] rounded-lg border border-[#E5E7EB] text-[#334155]">
                     {selectedRequest.handover_notes}
                   </p>
                 </div>
               )}
+
+              {/* Approval Timeline */}
+              <div>
+                <span className="text-[#64748B] block font-semibold mb-2">Workflow Activity Trail</span>
+                <div className="space-y-2 border-l-2 border-[#E5E7EB] pl-3 ml-1">
+                  {state.approvalActions
+                    .filter((a) => a.leave_request_id === selectedRequest.id)
+                    .map((action, i) => (
+                      <div key={action.id || i} className="text-[11px] relative">
+                        <span className="font-semibold text-[#111827]">{action.actor_name}</span>{' '}
+                        <span className="text-[#64748B]">action:</span>{' '}
+                        <span className="font-semibold text-[#2563EB]">{action.action}</span>
+                        {action.comments && (
+                          <p className="text-[#475569] italic mt-0.5">"{action.comments}"</p>
+                        )}
+                        <span className="text-[10px] text-[#94A3B8] block mt-0.5">
+                          {action.created_at ? new Date(action.created_at).toLocaleString() : ''}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
             </div>
 
-            <DialogFooter className="border-t border-slate-100 pt-3">
-              <Button variant="outline" size="sm" onClick={() => setSelectedRequest(null)}>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setSelectedRequest(null)}
+                className="w-full text-xs h-9 border-[#E5E7EB]"
+              >
                 Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* HR Final Approve Dialog */}
+      {approveTargetId && (
+        <Dialog open={!!approveTargetId} onOpenChange={() => setApproveTargetId(null)}>
+          <DialogContent className="max-w-md bg-white border-[#E5E7EB] text-[#111827] rounded-2xl shadow-modal">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold text-[#166534]">
+                Grant Final HR Approval
+              </DialogTitle>
+              <DialogDescription className="text-xs text-[#64748B]">
+                This action grants final approval for this leave request. The employee's leave balance will be permanently deducted and ledger updated.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2 text-xs">
+              <Label htmlFor="approveComment" className="font-semibold text-[#111827]">
+                HR Sign-Off Comment (Optional)
+              </Label>
+              <Input
+                id="approveComment"
+                value={approveComment}
+                onChange={(e) => setApproveComment(e.target.value)}
+                placeholder="e.g. HR final approval granted. Leave recorded."
+                className="border-[#E5E7EB] text-xs h-9"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setApproveTargetId(null)} className="text-xs h-9 border-[#E5E7EB]">
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmApprove}
+                className="bg-[#166534] hover:bg-[#14532D] text-white text-xs h-9 font-semibold"
+              >
+                Finalize Approval
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* HR Reject Dialog */}
+      {rejectTargetId && (
+        <Dialog open={!!rejectTargetId} onOpenChange={() => setRejectTargetId(null)}>
+          <DialogContent className="max-w-md bg-white border-[#E5E7EB] text-[#111827] rounded-2xl shadow-modal">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold text-[#991B1B]">
+                Reject Leave Request (HR)
+              </DialogTitle>
+              <DialogDescription className="text-xs text-[#64748B]">
+                Provide an administrative rejection reason. The reserved leave balance will be refunded.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2 text-xs">
+              <Label htmlFor="rejectReason" className="font-semibold text-[#111827]">
+                Rejection Reason <span className="text-[#991B1B]">*</span>
+              </Label>
+              <Textarea
+                id="rejectReason"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Enter justification for rejection..."
+                rows={3}
+                className="border-[#E5E7EB] text-xs resize-none"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRejectTargetId(null)} className="text-xs h-9 border-[#E5E7EB]">
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmReject}
+                className="bg-[#991B1B] hover:bg-[#7F1D1D] text-white text-xs h-9 font-semibold"
+              >
+                Reject Request
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* HR Cancel Dialog */}
+      {cancelTargetId && (
+        <Dialog open={!!cancelTargetId} onOpenChange={() => setCancelTargetId(null)}>
+          <DialogContent className="max-w-md bg-white border-[#E5E7EB] text-[#111827] rounded-2xl shadow-modal">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold text-[#111827]">
+                Administrative Leave Cancellation
+              </DialogTitle>
+              <DialogDescription className="text-xs text-[#64748B]">
+                Cancel an approved leave and restore the deducted balance to the employee's quota.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2 text-xs">
+              <Label htmlFor="cancelReason" className="font-semibold text-[#111827]">
+                Reason for Cancellation <span className="text-[#991B1B]">*</span>
+              </Label>
+              <Textarea
+                id="cancelReason"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Reason for administrative cancellation..."
+                rows={3}
+                className="border-[#E5E7EB] text-xs resize-none"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCancelTargetId(null)} className="text-xs h-9 border-[#E5E7EB]">
+                Dismiss
+              </Button>
+              <Button
+                onClick={handleConfirmCancel}
+                className="bg-[#991B1B] hover:bg-[#7F1D1D] text-white text-xs h-9 font-semibold"
+              >
+                Cancel Leave
               </Button>
             </DialogFooter>
           </DialogContent>
