@@ -11,6 +11,7 @@ import {
   LogOut,
   Wifi,
   WifiOff,
+  CheckCircle2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -60,119 +61,56 @@ export function Header({
   user = { name: "Ananda K", email: "ananda@abctech.com", role: "EMPLOYEE" },
   onSignOut,
 }: HeaderProps) {
-  const statusConfig = {
-    connected: {
-      color: "bg-emerald-500",
-      text: "Connected (Real-time sync active)",
-      icon: Wifi,
-    },
-    reconnecting: {
-      color: "bg-amber-500 animate-pulse",
-      text: "Reconnecting to server...",
-      icon: Wifi,
-    },
-    disconnected: {
-      color: "bg-red-500",
-      text: "Disconnected from server",
-      icon: WifiOff,
-    },
-  }[connectionStatus];
-
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6">
+    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80 sm:px-6">
       {/* Left side: Hamburger button + Page Title */}
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
           size="icon"
           onClick={onOpenMobileMenu}
-          className="lg:hidden h-9 w-9 text-muted-foreground"
+          className="lg:hidden h-8 w-8 text-slate-500 hover:text-slate-900 rounded-lg"
           aria-label="Open mobile menu"
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="h-4 w-4" />
         </Button>
-        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground truncate">
+        <h1 className="text-base sm:text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100 truncate">
           {title}
         </h1>
       </div>
 
       {/* Right side controls */}
-      <div className="flex items-center gap-2 sm:gap-4">
-        {/* Connection status indicator */}
-        <TooltipProvider delayDuration={200}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1.5 cursor-pointer px-2 py-1 rounded-full text-xs font-medium text-muted-foreground hover:bg-muted/60 transition-colors">
-                <span
-                  className={cn(
-                    "inline-block h-2.5 w-2.5 rounded-full ring-2 ring-background",
-                    statusConfig.color
-                  )}
-                />
-                <span className="hidden md:inline capitalize text-[11px] font-medium text-muted-foreground">
-                  {connectionStatus}
-                </span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p className="text-xs">{statusConfig.text}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Subtle Sync Indicator */}
+        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100/80 border border-slate-200/60 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Realtime Synced</span>
+        </div>
 
-        {/* Global Search Button */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onOpenSearch}
-          className="hidden sm:flex items-center gap-2 text-muted-foreground h-9 px-3 w-40 lg:w-60 justify-start"
-        >
-          <Search className="h-4 w-4" />
-          <span className="text-xs truncate">Search leave, employees...</span>
-          <kbd className="pointer-events-none ml-auto hidden md:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-            <span className="text-xs">⌘</span>K
-          </kbd>
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onOpenSearch}
-          className="sm:hidden h-9 w-9 text-muted-foreground"
-          aria-label="Search"
-        >
-          <Search className="h-5 w-5" />
-        </Button>
-
-        {/* Notifications bell */}
+        {/* Notifications Button */}
         <Button
           variant="ghost"
           size="icon"
           onClick={onOpenNotifications}
-          className="relative h-9 w-9 text-muted-foreground hover:text-foreground"
-          aria-label="Open notifications"
+          className="relative h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg dark:text-slate-400 dark:hover:text-slate-100"
+          aria-label="Notifications"
         >
-          <Bell className="h-5 w-5" />
+          <Bell className="h-4 w-4" />
           {unreadNotificationsCount > 0 && (
-            <Badge
-              className="absolute -top-1 -right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow-sm"
-            >
-              {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
-            </Badge>
+            <span className="absolute top-1 right-1 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
+            </span>
           )}
         </Button>
 
-        {/* Profile Dropdown */}
+        {/* User Dropdown Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              className="relative h-9 w-9 rounded-full p-0 ring-offset-background hover:ring-2 hover:ring-ring"
-            >
-              <Avatar className="h-9 w-9">
-                {user.avatarUrl && (
-                  <AvatarImage src={user.avatarUrl} alt={user.name} />
-                )}
-                <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
+            <button className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+              <Avatar className="h-8 w-8 border border-slate-200 dark:border-slate-700">
+                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+                <AvatarFallback className="bg-blue-100 text-blue-800 text-xs font-semibold dark:bg-blue-950 dark:text-blue-300">
                   {user.name
                     .split(" ")
                     .map((n) => n[0])
@@ -181,46 +119,39 @@ export function Header({
                     .toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-            </Button>
+            </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-semibold leading-none text-foreground truncate">
-                  {user.name}
-                </p>
-                {user.email && (
-                  <p className="text-xs leading-none text-muted-foreground truncate">
-                    {user.email}
-                  </p>
-                )}
-                {user.role && (
-                  <Badge variant="secondary" className="w-fit text-[10px] mt-1">
-                    {user.role}
-                  </Badge>
-                )}
+
+          <DropdownMenuContent
+            align="end"
+            className="w-56 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.08)] dark:border-slate-800 dark:bg-slate-900"
+          >
+            <DropdownMenuLabel className="px-3 py-2 font-normal">
+              <div className="flex flex-col space-y-0.5">
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{user.name}</p>
+                <p className="text-xs text-slate-500 truncate dark:text-slate-400">{user.email}</p>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/employee/profile" className="flex items-center gap-2 cursor-pointer">
-                <User className="h-4 w-4" />
+            <DropdownMenuSeparator className="my-1 bg-slate-100 dark:bg-slate-800" />
+            <DropdownMenuItem asChild className="rounded-xl px-3 py-2 text-xs font-medium cursor-pointer text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
+              <Link href="/employee/profile" className="flex items-center gap-2">
+                <User className="h-3.5 w-3.5 text-slate-500" />
                 <span>My Profile</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
-                <Settings className="h-4 w-4" />
-                <span>Settings</span>
+            <DropdownMenuItem asChild className="rounded-xl px-3 py-2 text-xs font-medium cursor-pointer text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
+              <Link href="/employee/notifications" className="flex items-center gap-2">
+                <Bell className="h-3.5 w-3.5 text-slate-500" />
+                <span>Notifications</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="my-1 bg-slate-100 dark:bg-slate-800" />
             <DropdownMenuItem
               onClick={onSignOut}
-              className="flex items-center gap-2 text-destructive focus:text-destructive cursor-pointer"
+              className="rounded-xl px-3 py-2 text-xs font-medium cursor-pointer text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 flex items-center gap-2"
             >
-              <LogOut className="h-4 w-4" />
-              <span>Sign out</span>
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Sign Out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

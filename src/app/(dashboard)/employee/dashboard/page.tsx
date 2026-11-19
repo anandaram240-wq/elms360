@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { format, addDays, isAfter, isBefore, parseISO } from 'date-fns'
+import { format, addDays, parseISO } from 'date-fns'
 import {
   CalendarPlus,
   CalendarCheck,
@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   XCircle,
   Briefcase,
-  AlertCircle,
   ArrowRight,
   Calendar,
   Sparkles,
@@ -124,29 +123,31 @@ export default async function EmployeeDashboardPage() {
   const holidays = holidaysData || []
 
   return (
-    <div className="space-y-8 pb-10">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 p-6 sm:p-8 text-white shadow-lg">
-        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-7 pb-10">
+      {/* Apple-style White Hero Card */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-blue-100 text-sm font-medium">
-              <Sparkles className="h-4 w-4" />
-              <span>Employee Portal</span>
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                <Sparkles className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                Employee Portal
+              </span>
               <span>•</span>
               <span>{format(new Date(), 'EEEE, MMMM d, yyyy')}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
               {getGreeting(currentUser.fullName)}
             </h1>
-            <p className="text-blue-100/90 text-sm max-w-xl">
-              Track your leave balances, submit vacation requests, and stay updated with your team schedule.
+            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xl">
+              Track your leave balances, submit vacation requests, and review upcoming absences with zero friction.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <Link href="/employee/apply-leave">
-              <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50 font-semibold shadow-md gap-2">
-                <CalendarPlus className="h-5 w-5" />
+              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-[0_1px_2px_rgba(37,99,235,0.2)] rounded-xl gap-2">
+                <CalendarPlus className="h-4 w-4" />
                 Apply for Leave
               </Button>
             </Link>
@@ -154,76 +155,78 @@ export default async function EmployeeDashboardPage() {
         </div>
       </div>
 
-      {/* 6 Stats Cards */}
+      {/* 6 Stats Overview Cards */}
       <div>
-        <h2 className="text-lg font-semibold tracking-tight text-foreground mb-4">
-          Annual Leave Overview ({currentYear})
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="flex items-center justify-between mb-3.5">
+          <h2 className="text-sm font-semibold tracking-wide uppercase text-slate-500 dark:text-slate-400">
+            Annual Leave Overview ({currentYear})
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
           <StatsCard
-            title="Total Entitlement"
+            title="Total Quota"
             value={`${totalEntitlement} d`}
-            description="Annual quota"
+            description="Entitlement"
             icon={Briefcase}
           />
           <StatsCard
-            title="Available Balance"
+            title="Available"
             value={`${totalAvailable} d`}
             description="Ready to use"
             icon={CalendarCheck}
-            className="border-blue-200 bg-blue-50/30 dark:bg-blue-950/20"
+            className="border-blue-200/80 bg-blue-50/20 dark:bg-blue-950/20"
           />
           <StatsCard
-            title="Used Leaves"
+            title="Used"
             value={`${totalUsed} d`}
             description="Days taken"
             icon={Calendar}
           />
           <StatsCard
-            title="Pending Requests"
+            title="Pending"
             value={pendingCount}
             description="Under review"
             icon={Clock}
           />
           <StatsCard
-            title="Approved Leaves"
+            title="Approved"
             value={`${approvedThisYear} d`}
-            description="Approved this year"
+            description="This year"
             icon={CheckCircle2}
           />
           <StatsCard
             title="Rejected"
             value={rejectedCount}
-            description="Declined requests"
+            description="Declined"
             icon={XCircle}
           />
         </div>
       </div>
 
-      {/* Leave Balance Cards Grid */}
+      {/* Leave Balances Breakdown */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3.5">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            <h2 className="text-base font-semibold tracking-tight text-slate-900 dark:text-slate-100">
               Leave Balances
             </h2>
-            <p className="text-sm text-muted-foreground">
-              Breakdown by active leave categories
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Active quotas by leave category
             </p>
           </div>
           <Link
             href="/employee/leave-balance"
-            className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
+            className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1"
           >
-            <span>View detailed ledger</span>
-            <ArrowRight className="h-4 w-4" />
+            <span>Detailed ledger</span>
+            <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {balances.length === 0 ? (
-            <Card className="col-span-full p-8 text-center text-muted-foreground">
-              No leave policies currently assigned. Contact HR for details.
+            <Card className="col-span-full p-8 text-center text-slate-500">
+              No leave policies currently assigned. Contact HR for assistance.
             </Card>
           ) : (
             balances.map((b) => (
@@ -242,26 +245,26 @@ export default async function EmployeeDashboardPage() {
       </div>
 
       {/* Main Content Grid: Recent Applications & Upcoming Leaves */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Applications (2 cols) */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-3.5">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            <h2 className="text-base font-semibold tracking-tight text-slate-900 dark:text-slate-100">
               Recent Applications
             </h2>
             <Link
               href="/employee/my-leaves"
-              className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
+              className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1"
             >
-              <span>View all</span>
-              <ArrowRight className="h-4 w-4" />
+              <span>View all leaves</span>
+              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
 
-          <Card>
+          <Card className="overflow-hidden border border-slate-200/80 rounded-2xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900">
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="bg-muted/50 text-muted-foreground border-b text-xs uppercase tracking-wider font-semibold">
+                <thead className="bg-slate-50/70 border-b border-slate-200/80 text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-400">
                   <tr>
                     <th className="py-3 px-4">Request #</th>
                     <th className="py-3 px-4">Leave Type</th>
@@ -271,34 +274,34 @@ export default async function EmployeeDashboardPage() {
                     <th className="py-3 px-4 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {recentApplications.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                      <td colSpan={6} className="py-8 text-center text-sm text-slate-500">
                         You have not submitted any leave requests yet.
                       </td>
                     </tr>
                   ) : (
                     recentApplications.map((req) => (
-                      <tr key={req.id} className="hover:bg-muted/40 transition-colors">
-                        <td className="py-3.5 px-4 font-mono font-medium text-foreground">
+                      <tr key={req.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-3.5 px-4 font-mono font-medium text-xs text-slate-900 dark:text-slate-100">
                           {req.request_number}
                         </td>
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-2">
                             <span
-                              className="h-2 w-2 rounded-full"
-                              style={{ backgroundColor: req.leave_types?.color || '#3b82f6' }}
+                              className="h-2 w-2 rounded-full shrink-0"
+                              style={{ backgroundColor: req.leave_types?.color || '#2563eb' }}
                             />
-                            <span className="font-medium text-foreground">
+                            <span className="font-medium text-slate-800 dark:text-slate-200">
                               {req.leave_types?.name || 'Leave'}
                             </span>
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 font-semibold text-foreground">
+                        <td className="py-3.5 px-4 font-medium text-slate-900 dark:text-slate-100">
                           {req.total_days} {Number(req.total_days) === 1 ? 'day' : 'days'}
                         </td>
-                        <td className="py-3.5 px-4 text-muted-foreground">
+                        <td className="py-3.5 px-4 text-xs text-slate-500 dark:text-slate-400">
                           {format(parseISO(req.start_date), 'dd MMM')} -{' '}
                           {format(parseISO(req.end_date), 'dd MMM yyyy')}
                         </td>
@@ -307,7 +310,7 @@ export default async function EmployeeDashboardPage() {
                         </td>
                         <td className="py-3.5 px-4 text-right">
                           <Link href={`/employee/my-leaves/${req.id}`}>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" className="h-8 text-xs font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50">
                               Details
                             </Button>
                           </Link>
@@ -321,37 +324,37 @@ export default async function EmployeeDashboardPage() {
           </Card>
         </div>
 
-        {/* Sidebar Column: Upcoming Approved Leaves & Holidays & Notifications */}
+        {/* Sidebar Column: Upcoming Approved Leaves & Holidays */}
         <div className="space-y-6">
-          {/* Upcoming Leaves Timeline */}
-          <Card>
+          {/* Upcoming Leaves Card */}
+          <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <CalendarCheck className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm font-semibold flex items-center gap-2 text-slate-900 dark:text-slate-100">
+                <CalendarCheck className="h-4 w-4 text-blue-600" />
                 Upcoming Approved Leaves
               </CardTitle>
-              <CardDescription>Scheduled within next 30 days</CardDescription>
+              <CardDescription className="text-xs text-slate-500">Scheduled within the next 30 days</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2.5">
               {upcomingApprovedLeaves.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">
+                <p className="text-xs text-slate-500 py-2">
                   No upcoming leaves scheduled.
                 </p>
               ) : (
                 upcomingApprovedLeaves.map((leave) => (
                   <div
                     key={leave.id}
-                    className="flex items-start gap-3 p-3 rounded-lg border bg-card text-card-foreground hover:bg-muted/30 transition-colors"
+                    className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-100/60 transition-colors dark:border-slate-800 dark:bg-slate-800/40"
                   >
                     <div
-                      className="w-1.5 self-stretch rounded-full"
+                      className="w-1 self-stretch rounded-full"
                       style={{ backgroundColor: leave.leave_types?.color || '#10b981' }}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">
+                      <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
                         {leave.leave_types?.name}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
                         {format(parseISO(leave.start_date), 'MMM d')} -{' '}
                         {format(parseISO(leave.end_date), 'MMM d, yyyy')} ({leave.total_days} days)
                       </p>
@@ -363,71 +366,35 @@ export default async function EmployeeDashboardPage() {
           </Card>
 
           {/* Company Holidays */}
-          <Card>
+          <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-900">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-primary" />
-                Holidays Next 30 Days
+              <CardTitle className="text-sm font-semibold flex items-center gap-2 text-slate-900 dark:text-slate-100">
+                <Calendar className="h-4 w-4 text-blue-600" />
+                Company Holidays (Next 30 Days)
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2.5">
               {holidays.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">
+                <p className="text-xs text-slate-500 py-2">
                   No upcoming public holidays in the next 30 days.
                 </p>
               ) : (
                 holidays.map((h) => (
                   <div
                     key={h.id}
-                    className="flex items-center justify-between p-2.5 rounded-lg border bg-muted/20"
+                    className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-800/40"
                   >
                     <div>
-                      <p className="text-sm font-medium">{h.name}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">{h.name}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
                         {format(parseISO(h.holiday_date), 'EEEE, MMM d, yyyy')}
                       </p>
                     </div>
                     {h.is_optional && (
-                      <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 font-medium px-2 py-0.5 rounded">
+                      <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200/60 font-medium px-2 py-0.5 rounded-full">
                         Optional
                       </span>
                     )}
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Recent Notifications */}
-          <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base font-semibold">Notifications</CardTitle>
-                <CardDescription>Recent updates</CardDescription>
-              </div>
-              <Link
-                href="/employee/notifications"
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                View all
-              </Link>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {notifications.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">No recent notifications.</p>
-              ) : (
-                notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    className="p-2.5 rounded-lg border bg-card text-card-foreground text-xs space-y-1"
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="font-semibold text-foreground">{n.title}</p>
-                      <span className="text-[10px] text-muted-foreground">
-                        {format(parseISO(n.created_at), 'MMM d, h:mm a')}
-                      </span>
-                    </div>
-                    <p className="text-muted-foreground line-clamp-2">{n.message}</p>
                   </div>
                 ))
               )}

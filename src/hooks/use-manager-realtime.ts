@@ -30,7 +30,9 @@ export function useManagerRealtime({
   const queryClient = useQueryClient()
   const supabase = createClient()
   const onNewRequestRef = useRef(onNewRequest)
-  onNewRequestRef.current = onNewRequest
+  useEffect(() => {
+    onNewRequestRef.current = onNewRequest
+  }, [onNewRequest])
 
   const invalidateQueries = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] })

@@ -5,18 +5,18 @@ import { Progress } from "@/components/ui/progress";
 
 export interface LeaveBalanceCardProps {
   leaveTypeName: string;
-  color?: string; // hex or tailwind color class
+  color?: string;
   available: number;
   total: number;
   used?: number;
   pending?: number;
-  unit?: string; // 'days' or 'hours'
+  unit?: string;
   className?: string;
 }
 
 export function LeaveBalanceCard({
   leaveTypeName,
-  color = "#4a6cf7",
+  color = "#2563EB",
   available,
   total,
   used,
@@ -24,25 +24,29 @@ export function LeaveBalanceCard({
   unit = "days",
   className,
 }: LeaveBalanceCardProps) {
-  // If used is not explicitly provided, calculate used = total - available
   const calculatedUsed = used !== undefined ? used : Math.max(0, total - available);
   const usedPercentage = total > 0 ? Math.min(100, Math.round((calculatedUsed / total) * 100)) : 0;
 
   return (
-    <Card className={cn("overflow-hidden border transition-shadow hover:shadow-md", className)}>
+    <Card
+      className={cn(
+        "rounded-2xl border border-slate-200/80 bg-white transition-all duration-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.04)] dark:border-slate-800 dark:bg-slate-900",
+        className
+      )}
+    >
       <CardContent className="p-5">
-        {/* Header with Leave Type Name & Color Dot */}
+        {/* Header with Leave Type Name & Indicator Dot */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span
-              className="h-3 w-3 rounded-full shrink-0 shadow-sm"
+              className="h-2.5 w-2.5 rounded-full shrink-0"
               style={{ backgroundColor: color }}
             />
-            <h4 className="font-semibold text-sm text-foreground truncate max-w-[150px]">
+            <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate max-w-[160px]">
               {leaveTypeName}
             </h4>
           </div>
-          <span className="text-xs font-medium text-muted-foreground">
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
             {usedPercentage}% used
           </span>
         </div>
@@ -50,29 +54,37 @@ export function LeaveBalanceCard({
         {/* Numbers: Available / Total */}
         <div className="flex items-baseline justify-between mb-3">
           <div>
-            <span className="text-3xl font-extrabold text-foreground">
+            <span className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
               {available}
             </span>
-            <span className="text-xs text-muted-foreground ml-1">
+            <span className="text-xs text-slate-500 dark:text-slate-400 ml-1.5 font-normal">
               / {total} {unit}
             </span>
           </div>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-            {available} available
+          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+            Active Quota
           </span>
         </div>
 
-        {/* Progress bar */}
-        <div className="space-y-1.5">
-          <Progress value={usedPercentage} className="h-2" />
-          <div className="flex justify-between text-[11px] text-muted-foreground">
-            <span>Used: {calculatedUsed} {unit}</span>
-            {pending > 0 && (
-              <span className="text-amber-600 dark:text-amber-400 font-medium">
-                Pending: {pending} {unit}
-              </span>
-            )}
-          </div>
+        {/* Apple-style thin Progress bar */}
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div
+            className="h-full rounded-full transition-all duration-300"
+            style={{
+              width: `${usedPercentage}%`,
+              backgroundColor: color,
+            }}
+          />
+        </div>
+
+        {/* Sub-breakdown footer */}
+        <div className="mt-3.5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+          <span>Used: <strong className="font-semibold text-slate-700 dark:text-slate-300">{calculatedUsed} {unit}</strong></span>
+          {pending > 0 && (
+            <span className="text-amber-700 dark:text-amber-400 font-medium">
+              Pending: {pending} {unit}
+            </span>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -53,12 +53,14 @@ export function DatePicker({
   const [currentMonth, setCurrentMonth] = React.useState<Date>(
     value || new Date()
   );
+  const [prevValue, setPrevValue] = React.useState<Date | undefined>(value);
 
-  React.useEffect(() => {
+  if (value !== prevValue) {
+    setPrevValue(value);
     if (value) {
       setCurrentMonth(value);
     }
-  }, [value]);
+  }
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
