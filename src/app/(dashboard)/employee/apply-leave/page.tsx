@@ -357,6 +357,18 @@ export default function ApplyLeavePage() {
             </div>
 
             {/* Policy Warnings Alert */}
+            {calcResult.workingDays <= 0 && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-4 space-y-1.5 text-amber-900 dark:text-amber-200">
+                <div className="flex items-center gap-2 font-semibold text-sm text-amber-800 dark:text-amber-300">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <span>0 Working Days Selected (Weekly Off / Weekend)</span>
+                </div>
+                <p className="text-xs leading-relaxed">
+                  The selected date range falls entirely on non-working days (weekends or company holidays). Company policy automatically exempts non-working days so no leave balance is deducted. Please click <strong>Back</strong> and select working weekdays (e.g. Monday–Friday) to submit your leave request.
+                </p>
+              </div>
+            )}
+
             {calcResult.policyWarnings.length > 0 && (
               <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-4 space-y-2">
                 <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-semibold text-sm">
@@ -409,7 +421,11 @@ export default function ApplyLeavePage() {
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
-            <Button onClick={() => setStep(3)} className="gap-2">
+            <Button
+              onClick={() => setStep(3)}
+              disabled={calcResult.workingDays <= 0}
+              className="gap-2"
+            >
               Continue to Additional Info
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -543,6 +559,18 @@ export default function ApplyLeavePage() {
               )}
             </div>
 
+            {calcResult && calcResult.workingDays <= 0 && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-4 space-y-1.5 text-amber-900 dark:text-amber-200">
+                <div className="flex items-center gap-2 font-semibold text-sm text-amber-800 dark:text-amber-300">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <span>Cannot Submit: 0 Working Days Selected</span>
+                </div>
+                <p className="text-xs leading-relaxed">
+                  The selected dates ({startDate && format(startDate, 'dd MMM yyyy')}) fall on a scheduled weekly off (weekend). You cannot submit a leave application for 0 working days. Please click <strong>Back</strong> and select working days (Monday–Friday).
+                </p>
+              </div>
+            )}
+
             {/* Confirmation Checkbox */}
             <div className="flex items-start gap-3 p-4 rounded-xl border bg-card">
               <Checkbox
@@ -570,7 +598,7 @@ export default function ApplyLeavePage() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!confirmed || submitting}
+              disabled={!confirmed || submitting || (calcResult && calcResult.workingDays <= 0)}
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold gap-2"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
