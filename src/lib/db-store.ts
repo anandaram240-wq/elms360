@@ -159,6 +159,8 @@ export class MockQueryBuilder {
   private selectCols: string = '*'
   private isHead: boolean = false
   private countType: 'exact' | null = null
+  private operation: 'select' | 'insert' | 'update' | 'upsert' | 'delete' = 'select'
+  private payload: any = null
 
   constructor(tableName: string) {
     this.tableName = tableName as keyof DbState
@@ -374,70 +376,27 @@ export class MockQueryBuilder {
     return this
   }
 
-  async insert(data: any | any[]) {
-    const db = getDb()
-    const table = db[this.tableName] || []
-    const items = Array.isArray(data) ? data : [data]
-    const created: any[] = []
-
-    for (const item of items) {
-      const newItem = {
-        id: item.id || `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        created_at: item.created_at || new Date().toISOString(),
-        updated_at: item.updated_at || new Date().toISOString(),
-        ...item,
-      }
-      table.push(newItem)
-      created.push(newItem)
-    }
-
-    return {
-      data: Array.isArray(data) ? created : created[0],
-      error: null,
-    }
+  insert(data: any | any[]) {
+    this.operation = 'insert'
+    this.payload = data
+    return this
   }
 
-  async update(data: any) {
-    const db = getDb()
-    const table = db[this.tableName] || []
-    const updated: any[] = []
-
-    for (let i = 0; i < table.length; i++) {
-      const item = table[i]
-      const matches = this.filters.every((fn) => fn(item))
-      if (matches) {
-        table[i] = {
-          ...item,
-          ...data,
-          updated_at: new Date().toISOString(),
-        }
-        updated.push(table[i])
-      }
-    }
-
-    return {
-      data: updated.length === 1 ? updated[0] : updated,
-      error: null,
-    }
+  update(data: any) {
+    this.operation = 'update'
+    this.payload = data
+    return this
   }
 
-  async delete() {
-    const db = getDb()
-    const table = db[this.tableName] || []
-    const remaining: any[] = []
-    const deleted: any[] = []
+  upsert(data: any | any[], _opts?: any) {
+    this.operation = 'upsert'
+    this.payload = data
+    return this
+  }
 
-    for (const item of table) {
-      const matches = this.filters.every((fn) => fn(item))
-      if (matches) {
-        deleted.push(item)
-      } else {
-        remaining.push(item)
-      }
-    }
-
-    db[this.tableName] = remaining
-    return { data: deleted, error: null }
+  delete() {
+    this.operation = 'delete'
+    return this
   }
 
   private resolveRelationships(row: any): any {
@@ -495,8 +454,95 @@ export class MockQueryBuilder {
 
   private executeQuery(): { data: any; count: number | null; error: any } {
     const db = getDb()
-    const table = db[this.tableName] || []
+    const table = (db[this.tableName] = db[this.tableName] || [])
 
+    if (this.operation === 'insert') {
+      const items = Array.isArray(this.payload) ? this.payload : [this.payload]
+      const created: any[] = []
+      for (const item of items) {
+        const newItem = {
+          id: item.id || `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          created_at: item.created_at || new Date().toISOString(),
+          updated_at: item.updated_at || new Date().toISOString(),
+          ...item,
+        }
+        table.push(newItem)
+        created.push(this.resolveRelationships(newItem))
+      }
+      return {
+        data: Array.isArray(this.payload) ? created : created[0],
+        count: created.length,
+        error: null,
+      }
+    }
+
+    if (this.operation === 'update') {
+      const updated: any[] = []
+      for (let i = 0; i < table.length; i++) {
+        const item = table[i]
+        const matches = this.filters.every((fn) => fn(item))
+        if (matches) {
+          table[i] = {
+            ...item,
+            ...this.payload,
+            updated_at: new Date().toISOString(),
+          }
+          updated.push(this.resolveRelationships(table[i]))
+        }
+      }
+      return {
+        data: updated.length === 1 ? updated[0] : updated,
+        count: updated.length,
+        error: null,
+      }
+    }
+
+    if (this.operation === 'upsert') {
+      const items = Array.isArray(this.payload) ? this.payload : [this.payload]
+      const results: any[] = []
+      for (const item of items) {
+        const idx = item.id ? table.findIndex((r) => r.id === item.id) : -1
+        if (idx >= 0) {
+          table[idx] = { ...table[idx], ...item, updated_at: new Date().toISOString() }
+          results.push(this.resolveRelationships(table[idx]))
+        } else {
+          const newItem = {
+            id: item.id || `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            created_at: item.created_at || new Date().toISOString(),
+            updated_at: item.updated_at || new Date().toISOString(),
+            ...item,
+          }
+          table.push(newItem)
+          results.push(this.resolveRelationships(newItem))
+        }
+      }
+      return {
+        data: Array.isArray(this.payload) ? results : results[0],
+        count: results.length,
+        error: null,
+      }
+    }
+
+    if (this.operation === 'delete') {
+      const remaining: any[] = []
+      const deleted: any[] = []
+      for (const item of table) {
+        const matches = this.filters.every((fn) => fn(item))
+        if (matches) {
+          deleted.push(this.resolveRelationships(item))
+        } else {
+          remaining.push(item)
+        }
+      }
+      db[this.tableName] = remaining
+      return {
+        data: deleted,
+        count: deleted.length,
+        error: null,
+      }
+    }
+
+    // Default SELECT
     let filtered = table.filter((item) => this.filters.every((fn) => fn(item)))
     const count = filtered.length
 
@@ -534,18 +580,18 @@ export class MockQueryBuilder {
 
   async single() {
     const res = this.executeQuery()
-    const item = res.data && res.data.length > 0 ? res.data[0] : null
+    const item = Array.isArray(res.data) ? (res.data.length > 0 ? res.data[0] : null) : res.data
     return {
-      data: item,
+      data: item || null,
       error: item ? null : { message: 'Row not found', code: 'PGRST116' },
     }
   }
 
   async maybeSingle() {
     const res = this.executeQuery()
-    const item = res.data && res.data.length > 0 ? res.data[0] : null
+    const item = Array.isArray(res.data) ? (res.data.length > 0 ? res.data[0] : null) : res.data
     return {
-      data: item,
+      data: item || null,
       error: null,
     }
   }
@@ -557,6 +603,34 @@ export function createMockSupabaseClient(activeUser?: any) {
   return {
     from(tableName: string) {
       return new MockQueryBuilder(tableName)
+    },
+    async rpc(functionName: string, params?: any) {
+      if (functionName === 'submit_leave_request') {
+        const requestId = params?.p_request_id
+        const req = db.leave_requests.find((r) => r.id === requestId)
+        if (req) {
+          req.status = 'PENDING_MANAGER_APPROVAL'
+          req.updated_at = new Date().toISOString()
+        }
+        return { data: true, error: null }
+      }
+      if (functionName === 'process_approval_action') {
+        const requestId = params?.p_request_id
+        const action = params?.p_action
+        const req = db.leave_requests.find((r) => r.id === requestId)
+        if (req) {
+          if (action === 'APPROVE') {
+            req.status = req.status === 'PENDING_MANAGER_APPROVAL' ? 'PENDING_HR_APPROVAL' : 'APPROVED'
+          } else if (action === 'REJECT') {
+            req.status = 'REJECTED'
+          } else if (action === 'REQUEST_CLARIFICATION' || action === 'CLARIFY') {
+            req.status = 'CLARIFICATION_REQUESTED'
+          }
+          req.updated_at = new Date().toISOString()
+        }
+        return { data: { success: true, newStatus: req?.status || 'APPROVED' }, error: null }
+      }
+      return { data: { success: true }, error: null }
     },
     auth: {
       async getUser() {
