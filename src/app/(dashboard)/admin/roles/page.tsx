@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { useEffect, useState, useTransition } from 'react'
 import {
   getAdminRoles,
@@ -193,7 +194,7 @@ export default function AdminRolesPage() {
                   {role.isSystemRole ? 'Immutable system role' : 'Custom defined'}
                 </span>
                 <Button variant="ghost" size="sm" className="text-xs h-7" asChild>
-                  <a href="/admin/permissions">View Permissions Matrix</a>
+                  <Link href="/admin/permissions">View Permissions Matrix</Link>
                 </Button>
               </CardFooter>
             </Card>

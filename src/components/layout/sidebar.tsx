@@ -267,27 +267,29 @@ export function Sidebar({
               isCollapsed && !isMobileOpen ? "justify-center px-0" : ""
             )}
           >
-            <Avatar className="h-8 w-8 border border-slate-200 dark:border-slate-700">
-              {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-              <AvatarFallback className="bg-blue-100 text-blue-800 text-xs font-semibold dark:bg-blue-950 dark:text-blue-300">
-                {user.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .slice(0, 2)
-                  .toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            {(!isCollapsed || isMobileOpen) && (
-              <div className="flex-1 min-w-0">
-                <p className="truncate text-xs font-semibold text-slate-900 dark:text-slate-100">
-                  {user.name}
-                </p>
-                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  {user.role}
-                </span>
-              </div>
-            )}
+            <Link href="/employee/profile" className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-85 transition-opacity" title="View Profile">
+              <Avatar className="h-8 w-8 border border-slate-200 dark:border-slate-700 shrink-0">
+                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+                <AvatarFallback className="bg-blue-100 text-blue-800 text-xs font-semibold dark:bg-blue-950 dark:text-blue-300">
+                  {user.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              {(!isCollapsed || isMobileOpen) && (
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-xs font-semibold text-slate-900 dark:text-slate-100">
+                    {user.name}
+                  </p>
+                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    {user.role}
+                  </span>
+                </div>
+              )}
+            </Link>
             {(!isCollapsed || isMobileOpen) && (
               <Button
                 variant="ghost"

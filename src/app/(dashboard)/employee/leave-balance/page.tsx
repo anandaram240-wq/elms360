@@ -144,12 +144,12 @@ export default function LeaveBalancePage() {
             </Select>
           </div>
 
-          <Link href="/employee/apply-leave">
-            <Button className="gap-2 bg-primary text-primary-foreground font-medium">
+          <Button asChild className="gap-2 bg-primary text-primary-foreground font-medium">
+            <Link href="/employee/apply-leave">
               <CalendarPlus className="h-4 w-4" />
               Apply Leave
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </div>
 

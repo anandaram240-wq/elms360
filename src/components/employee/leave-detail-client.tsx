@@ -71,12 +71,12 @@ export function LeaveDetailClient({ requestId }: { requestId: string }) {
         <p className="text-sm text-muted-foreground">
           The requested leave application could not be found or you do not have permission to view it.
         </p>
-        <Link href="/employee/my-leaves">
-          <Button variant="outline" className="gap-2">
+        <Button asChild variant="outline" className="gap-2">
+          <Link href="/employee/my-leaves">
             <ArrowLeft className="h-4 w-4" />
             Back to My Leaves
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
     )
   }
@@ -170,12 +170,12 @@ export function LeaveDetailClient({ requestId }: { requestId: string }) {
       {/* Top Navigation & Status Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link href="/employee/my-leaves">
-            <Button variant="outline" size="sm" className="gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link href="/employee/my-leaves">
               <ArrowLeft className="h-4 w-4" />
               All Leaves
-            </Button>
-          </Link>
+            </Link>
+          </Button>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight text-foreground font-mono">
@@ -381,17 +381,17 @@ export function LeaveDetailClient({ requestId }: { requestId: string }) {
                           </p>
                         </div>
                       </div>
-                      <a
-                        href={att.file_path}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0"
-                      >
-                        <Button variant="ghost" size="sm" className="gap-1.5 text-xs">
+                      <Button asChild variant="ghost" size="sm" className="gap-1.5 text-xs shrink-0">
+                        <a
+                          href={att.file_path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                        >
                           <Download className="h-3.5 w-3.5" />
                           Download
-                        </Button>
-                      </a>
+                        </a>
+                      </Button>
                     </div>
                   ))}
                 </div>

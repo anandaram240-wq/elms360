@@ -256,12 +256,12 @@ export default function MyLeavesPage() {
             Track historical and current leave requests, withdraw pending applications, or request cancellations.
           </p>
         </div>
-        <Link href="/employee/apply-leave">
-          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-medium">
+        <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-medium">
+          <Link href="/employee/apply-leave">
             <CalendarPlus className="h-4 w-4" />
             Apply for Leave
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
 
       {/* Filter Toolbar */}

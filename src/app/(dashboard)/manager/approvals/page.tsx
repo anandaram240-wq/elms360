@@ -495,16 +495,17 @@ export default function ApprovalsQueuePage() {
                                 </Button>
                               </>
                             )}
-                            <Link href={`/manager/approvals/${req.id}`}>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 px-2 text-muted-foreground hover:text-foreground"
-                                title="View Details"
-                              >
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                              title="View Details"
+                            >
+                              <Link href={`/manager/approvals/${req.id}`}>
                                 <Eye className="h-3.5 w-3.5 mr-1" /> View
-                              </Button>
-                            </Link>
+                              </Link>
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>

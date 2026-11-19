@@ -88,11 +88,11 @@ export function PendingApprovalsPreview({
               <CardTitle className="text-lg">Pending Approvals</CardTitle>
               <CardDescription>Leave requests waiting for your review</CardDescription>
             </div>
-            <Link href="/manager/approvals">
-              <Button variant="ghost" size="sm" className="text-xs">
+            <Button asChild variant="ghost" size="sm" className="text-xs">
+              <Link href="/manager/approvals">
                 View All <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -120,11 +120,11 @@ export function PendingApprovalsPreview({
               </CardTitle>
               <CardDescription>Review and take action on incoming team leave requests</CardDescription>
             </div>
-            <Link href="/manager/approvals">
-              <Button variant="outline" size="sm" className="text-xs">
+            <Button asChild variant="outline" size="sm" className="text-xs">
+              <Link href="/manager/approvals">
                 View All Approvals <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -188,11 +188,11 @@ export function PendingApprovalsPreview({
                 >
                   <X className="mr-1 h-3.5 w-3.5" /> Reject
                 </Button>
-                <Link href={`/manager/approvals/${req.id}`}>
-                  <Button size="sm" variant="ghost" className="text-xs h-8 px-2 text-muted-foreground hover:text-foreground">
+                <Button asChild size="sm" variant="ghost" className="text-xs h-8 px-2 text-muted-foreground hover:text-foreground">
+                  <Link href={`/manager/approvals/${req.id}`}>
                     Details
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             </div>
           ))}

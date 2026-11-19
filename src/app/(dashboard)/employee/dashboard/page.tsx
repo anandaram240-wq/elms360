@@ -145,12 +145,12 @@ export default async function EmployeeDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            <Link href="/employee/apply-leave">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-[0_1px_2px_rgba(37,99,235,0.2)] rounded-xl gap-2">
+            <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-[0_1px_2px_rgba(37,99,235,0.2)] rounded-xl gap-2">
+              <Link href="/employee/apply-leave">
                 <CalendarPlus className="h-4 w-4" />
                 Apply for Leave
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         </div>
       </div>
@@ -309,11 +309,11 @@ export default async function EmployeeDashboardPage() {
                           <LeaveStatusBadge status={req.status} />
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <Link href={`/employee/my-leaves/${req.id}`}>
-                            <Button variant="ghost" size="sm" className="h-8 text-xs font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50">
+                          <Button asChild variant="ghost" size="sm" className="h-8 text-xs font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50">
+                            <Link href={`/employee/my-leaves/${req.id}`}>
                               Details
-                            </Button>
-                          </Link>
+                            </Link>
+                          </Button>
                         </td>
                       </tr>
                     ))

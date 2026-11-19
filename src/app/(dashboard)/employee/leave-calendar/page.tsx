@@ -201,12 +201,12 @@ export default function LeaveCalendarPage() {
             Export ICS
           </Button>
 
-          <Link href="/employee/apply-leave">
-            <Button size="sm" className="gap-2 bg-primary text-primary-foreground font-medium text-xs">
+          <Button asChild size="sm" className="gap-2 bg-primary text-primary-foreground font-medium text-xs">
+            <Link href="/employee/apply-leave">
               <CalendarPlus className="h-4 w-4" />
               Apply Leave
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </div>
 

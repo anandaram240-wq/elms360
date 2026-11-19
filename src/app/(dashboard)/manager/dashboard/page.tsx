@@ -32,18 +32,18 @@ export default async function ManagerDashboardPage() {
         title="Manager Dashboard"
         description="Overview of team leave requests, approvals, and upcoming absences."
       >
-        <Link href="/manager/approvals">
-          <Button variant="default" size="sm" className="gap-1.5 shadow-sm">
+        <Button asChild variant="default" size="sm" className="gap-1.5 shadow-sm">
+          <Link href="/manager/approvals">
             <CheckSquare className="h-4 w-4" />
             Review Approvals ({data.stats.pendingApprovals})
-          </Button>
-        </Link>
-        <Link href="/manager/team-calendar">
-          <Button variant="outline" size="sm" className="gap-1.5">
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="sm" className="gap-1.5">
+          <Link href="/manager/team-calendar">
             <Calendar className="h-4 w-4" />
             Team Calendar
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </PageHeader>
 
       {/* 5 Stats Cards */}
@@ -103,11 +103,11 @@ export default async function ManagerDashboardPage() {
                   </CardTitle>
                   <CardDescription>Daily in-office coverage for the next 7 days</CardDescription>
                 </div>
-                <Link href="/manager/team-calendar">
-                  <Button variant="ghost" size="sm" className="text-xs">
+                <Button asChild variant="ghost" size="sm" className="text-xs">
+                  <Link href="/manager/team-calendar">
                     Full Calendar <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -182,8 +182,8 @@ export default async function ManagerDashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Link href="/manager/approvals" className="block">
-                <Button variant="outline" className="w-full justify-between text-xs h-9">
+              <Button asChild variant="outline" className="w-full justify-between text-xs h-9">
+                <Link href="/manager/approvals">
                   <span className="flex items-center gap-2">
                     <CheckSquare className="h-3.5 w-3.5 text-primary" />
                     Approval Queue
@@ -191,35 +191,35 @@ export default async function ManagerDashboardPage() {
                   <Badge variant="warning" className="text-[10px] px-1.5 py-0">
                     {data.stats.pendingApprovals}
                   </Badge>
-                </Button>
-              </Link>
-              <Link href="/manager/team-calendar" className="block">
-                <Button variant="outline" className="w-full justify-between text-xs h-9">
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-between text-xs h-9">
+                <Link href="/manager/team-calendar">
                   <span className="flex items-center gap-2">
                     <Calendar className="h-3.5 w-3.5 text-primary" />
                     Team Leave Calendar
                   </span>
                   <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                </Button>
-              </Link>
-              <Link href="/manager/team" className="block">
-                <Button variant="outline" className="w-full justify-between text-xs h-9">
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-between text-xs h-9">
+                <Link href="/manager/team">
                   <span className="flex items-center gap-2">
                     <Users className="h-3.5 w-3.5 text-primary" />
                     Direct Reports Directory
                   </span>
                   <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                </Button>
-              </Link>
-              <Link href="/manager/delegations" className="block">
-                <Button variant="outline" className="w-full justify-between text-xs h-9">
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-between text-xs h-9">
+                <Link href="/manager/delegations">
                   <span className="flex items-center gap-2">
                     <UserCheck className="h-3.5 w-3.5 text-primary" />
                     Approval Delegations
                   </span>
                   <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </CardContent>
           </Card>
 
@@ -279,11 +279,11 @@ export default async function ManagerDashboardPage() {
                   <History className="h-4 w-4 text-muted-foreground" />
                   Recent Actions
                 </CardTitle>
-                <Link href="/manager/history">
-                  <Button variant="ghost" size="sm" className="text-xs h-7 px-2">
+                <Button asChild variant="ghost" size="sm" className="text-xs h-7 px-2">
+                  <Link href="/manager/history">
                     View All
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             </CardHeader>
             <CardContent>

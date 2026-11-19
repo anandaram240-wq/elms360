@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar, Role, NavItem } from "@/components/layout/sidebar";
 import { Header, ConnectionStatus } from "@/components/layout/header";
 import { NotificationPanel, NotificationItem } from "@/components/shared/notification-panel";
+import { signOut } from "@/app/actions/auth";
 
 export interface AppLayoutProps {
   children: React.ReactNode;
@@ -41,6 +43,16 @@ export function AppLayout({
 }: AppLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    if (onSignOut) {
+      onSignOut();
+    } else {
+      await signOut();
+      router.push("/login");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -51,7 +63,7 @@ export function AppLayout({
         user={user}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
-        onSignOut={onSignOut}
+        onSignOut={handleSignOut}
         pendingApprovalsCount={pendingApprovalsCount}
       />
 
@@ -65,7 +77,7 @@ export function AppLayout({
           unreadNotificationsCount={unreadNotificationsCount}
           connectionStatus={connectionStatus}
           user={user}
-          onSignOut={onSignOut}
+          onSignOut={handleSignOut}
         />
 
         {/* Page Content */}
