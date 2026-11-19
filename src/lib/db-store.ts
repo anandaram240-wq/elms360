@@ -214,6 +214,141 @@ export class MockQueryBuilder {
     return this
   }
 
+  not(column: string, operator: string, value: any) {
+    this.filters.push((item) => {
+      if (!item) return false
+      const itemVal = item[column]
+
+      if (operator === 'in') {
+        let list: string[] = []
+        if (Array.isArray(value)) {
+          list = value.map(String)
+        } else if (typeof value === 'string') {
+          list = value
+            .replace(/^\s*\(\s*|\s*\)\s*$/g, '')
+            .split(',')
+            .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+        }
+        return !list.includes(String(itemVal))
+      }
+
+      if (operator === 'eq' || operator === 'is') {
+        return itemVal !== value && String(itemVal) !== String(value)
+      }
+
+      if (operator === 'neq') {
+        return itemVal === value || String(itemVal) === String(value)
+      }
+
+      if (operator === 'gt') return !(itemVal > value)
+      if (operator === 'gte') return !(itemVal >= value)
+      if (operator === 'lt') return !(itemVal < value)
+      if (operator === 'lte') return !(itemVal <= value)
+      if (operator === 'like' || operator === 'ilike') {
+        const cleanPat = String(value).replace(/%/g, '').toLowerCase()
+        return !String(itemVal).toLowerCase().includes(cleanPat)
+      }
+
+      return true
+    })
+    return this
+  }
+
+  ilike(column: string, pattern: string) {
+    const clean = String(pattern).replace(/%/g, '').toLowerCase()
+    this.filters.push((item) => {
+      if (!item || item[column] == null) return false
+      return String(item[column]).toLowerCase().includes(clean)
+    })
+    return this
+  }
+
+  like(column: string, pattern: string) {
+    const clean = String(pattern).replace(/%/g, '')
+    this.filters.push((item) => {
+      if (!item || item[column] == null) return false
+      return String(item[column]).includes(clean)
+    })
+    return this
+  }
+
+  or(filters: string) {
+    if (!filters || typeof filters !== 'string') return this
+    const conditions = filters.split(',').map((cond) => {
+      const parts = cond.split('.')
+      return { col: parts[0]?.trim(), op: parts[1]?.trim(), val: parts[2]?.trim() }
+    })
+
+    this.filters.push((item) => {
+      if (!item) return false
+      return conditions.some(({ col, op, val }) => {
+        if (!col || !op) return false
+        const actual = item[col]
+        if (op === 'eq') return String(actual) === String(val)
+        if (op === 'neq') return String(actual) !== String(val)
+        if (op === 'gt') return Number(actual) > Number(val)
+        if (op === 'gte') return Number(actual) >= Number(val)
+        if (op === 'lt') return Number(actual) < Number(val)
+        if (op === 'lte') return Number(actual) <= Number(val)
+        if (op === 'ilike') return String(actual).toLowerCase().includes((val || '').toLowerCase())
+        return false
+      })
+    })
+    return this
+  }
+
+  filter(column: string, operator: string, value: any) {
+    if (operator === 'eq') return this.eq(column, value)
+    if (operator === 'neq') return this.neq(column, value)
+    if (operator === 'in') return this.in(column, value)
+    if (operator === 'not') return this.not(column, 'eq', value)
+    if (operator === 'gt') return this.gt(column, value)
+    if (operator === 'gte') return this.gte(column, value)
+    if (operator === 'lt') return this.lt(column, value)
+    if (operator === 'lte') return this.lte(column, value)
+    if (operator === 'ilike') return this.ilike(column, value)
+    if (operator === 'like') return this.like(column, value)
+    return this
+  }
+
+  contains(column: string, value: any) {
+    this.filters.push((item) => {
+      if (!item || item[column] == null) return false
+      const colVal = item[column]
+      if (Array.isArray(colVal)) {
+        if (Array.isArray(value)) return value.every((v) => colVal.includes(v))
+        return colVal.includes(value)
+      }
+      return String(colVal).includes(String(value))
+    })
+    return this
+  }
+
+  containedBy(column: string, value: any) {
+    this.filters.push((item) => {
+      if (!item || item[column] == null) return false
+      const colVal = item[column]
+      if (Array.isArray(value)) {
+        if (Array.isArray(colVal)) return colVal.every((v) => value.includes(v))
+        return value.includes(colVal)
+      }
+      return false
+    })
+    return this
+  }
+
+  overlaps(column: string, value: any) {
+    this.filters.push((item) => {
+      if (!item || item[column] == null) return false
+      const colVal = item[column]
+      if (Array.isArray(colVal) && Array.isArray(value)) {
+        return colVal.some((v) => value.includes(v))
+      }
+      return false
+    })
+    return this
+  }
+
   order(column: string, options?: { ascending?: boolean }) {
     const asc = options?.ascending ?? true
     this.sortFn = (a, b) => {
