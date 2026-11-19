@@ -3,9 +3,9 @@
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import type { CurrentUser, RoleCode } from '@/types/app'
 import { ROUTE_BY_ROLE } from '@/lib/constants'
-import { getDb } from '@/lib/db-store'
 
 export interface AuthActionResult<T = unknown> {
   success: boolean
@@ -23,29 +23,35 @@ export async function signIn(
 ): Promise<AuthActionResult<{ user: CurrentUser }>> {
   try {
     const trimmedEmail = email.trim().toLowerCase()
-    const db = getDb()
+    const admin = createAdminClient()
 
-    // 1. First check if employee exists in our system
-    const employee = db.employees.find(
-      (e) => e.work_email.toLowerCase() === trimmedEmail && e.is_active
-    )
+    // 1. Query active employee and assigned roles directly from Supabase / PostgreSQL
+    const { data: employees, error: empErr } = await admin
+      .from('employees')
+      .select(`
+        id, organization_id, employee_code, full_name, work_email, department_id, designation, is_active,
+        employee_role_assignments!employee_role_assignments_employee_id_fkey(
+          is_active,
+          roles(code)
+        )
+      `)
+      .ilike('work_email', trimmedEmail)
+      .eq('is_active', true)
+      .limit(1)
 
-    if (!employee) {
+    if (empErr || !employees || employees.length === 0) {
       return {
         success: false,
         error: 'No active employee found with this work email address.',
       }
     }
 
-    // 2. Fetch roles
-    const assignments = db.employee_role_assignments.filter(
-      (a) => a.employee_id === employee.id && a.is_active
-    )
+    const employee = employees[0]
+    const roleAssignments = (employee as any).employee_role_assignments || []
     const roles: RoleCode[] = []
-    for (const a of assignments) {
-      const r = db.roles.find((role) => role.id === a.role_id)
-      if (r && r.code) {
-        roles.push(r.code as RoleCode)
+    for (const a of roleAssignments) {
+      if (a.is_active !== false && a.roles?.code) {
+        roles.push(a.roles.code as RoleCode)
       }
     }
 
@@ -70,8 +76,8 @@ export async function signIn(
       avatarUrl: undefined,
       roles,
       employeeCode: employee.employee_code,
-      departmentId: employee.department_id,
-      designation: employee.designation,
+      departmentId: employee.department_id || undefined,
+      designation: employee.designation || undefined,
     }
 
     // Set secure HTTP session cookie
@@ -160,17 +166,31 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       return null
     }
 
-    const db = getDb()
-    const employee = db.employees.find((e) => e.work_email === user.email || e.id === user.id)
-    if (!employee) {
+    const admin = createAdminClient()
+    const { data: employees } = await admin
+      .from('employees')
+      .select(`
+        id, organization_id, employee_code, full_name, work_email, department_id, designation,
+        employee_role_assignments!employee_role_assignments_employee_id_fkey(
+          is_active,
+          roles(code)
+        )
+      `)
+      .or(`work_email.ilike.${user.email},id.eq.${user.id}`)
+      .eq('is_active', true)
+      .limit(1)
+
+    if (!employees || employees.length === 0) {
       return null
     }
 
-    const assignments = db.employee_role_assignments.filter((a) => a.employee_id === employee.id && a.is_active)
+    const employee = employees[0]
+    const roleAssignments = (employee as any).employee_role_assignments || []
     const roles: RoleCode[] = []
-    for (const a of assignments) {
-      const r = db.roles.find((role) => role.id === a.role_id)
-      if (r) roles.push(r.code as RoleCode)
+    for (const a of roleAssignments) {
+      if (a.is_active !== false && a.roles?.code) {
+        roles.push(a.roles.code as RoleCode)
+      }
     }
 
     const rolePriority: Record<RoleCode, number> = {
@@ -191,8 +211,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       avatarUrl: undefined,
       roles,
       employeeCode: employee.employee_code,
-      departmentId: employee.department_id,
-      designation: employee.designation,
+      departmentId: employee.department_id || undefined,
+      designation: employee.designation || undefined,
     }
   } catch (error) {
     console.error('Error in getCurrentUser:', error)

@@ -95,9 +95,9 @@ export default function ManagerApprovalsPage() {
   }
 
   // Handle Approve
-  const handleConfirmApprove = () => {
+  const handleConfirmApprove = async () => {
     if (!approveTargetId) return
-    const res = managerApprove(approveTargetId, approveComments.trim() || undefined)
+    const res = await managerApprove(approveTargetId, approveComments.trim() || undefined)
     if (res.success) {
       toast.success('Leave request approved and forwarded to HR Department for final sign-off.')
       setApproveTargetId(null)
@@ -108,13 +108,13 @@ export default function ManagerApprovalsPage() {
   }
 
   // Handle Reject
-  const handleConfirmReject = () => {
+  const handleConfirmReject = async () => {
     if (!rejectTargetId) return
     if (rejectReason.trim().length < 3) {
       toast.error('Please specify a rejection reason (minimum 3 characters)')
       return
     }
-    const res = managerReject(rejectTargetId, rejectReason.trim())
+    const res = await managerReject(rejectTargetId, rejectReason.trim())
     if (res.success) {
       toast.success('Leave request rejected. Balance reservation released.')
       setRejectTargetId(null)
@@ -125,13 +125,13 @@ export default function ManagerApprovalsPage() {
   }
 
   // Handle Clarification
-  const handleConfirmClarify = () => {
+  const handleConfirmClarify = async () => {
     if (!clarifyTargetId) return
     if (clarifyQuestion.trim().length < 3) {
       toast.error('Please enter the question for the employee (minimum 3 characters)')
       return
     }
-    const res = managerRequestClarification(clarifyTargetId, clarifyQuestion.trim())
+    const res = await managerRequestClarification(clarifyTargetId, clarifyQuestion.trim())
     if (res.success) {
       toast.success('Clarification requested. Employee has been notified.')
       setClarifyTargetId(null)

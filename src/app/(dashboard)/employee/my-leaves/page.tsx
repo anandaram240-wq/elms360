@@ -92,9 +92,9 @@ export default function MyLeavesPage() {
   }, [myRequests, statusFilter, typeFilter, search])
 
   // Handle Withdraw
-  const handleConfirmWithdraw = () => {
+  const handleConfirmWithdraw = async () => {
     if (!withdrawTargetId) return
-    const res = withdrawLeave(withdrawTargetId)
+    const res = await withdrawLeave(withdrawTargetId)
     if (res.success) {
       toast.success('Leave application withdrawn successfully. Reserved balance restored.')
       setWithdrawTargetId(null)
@@ -104,13 +104,13 @@ export default function MyLeavesPage() {
   }
 
   // Handle Cancellation
-  const handleConfirmCancellation = () => {
+  const handleConfirmCancellation = async () => {
     if (!cancelTargetId) return
     if (cancellationReason.trim().length < 3) {
       toast.error('Please enter a cancellation reason (minimum 3 characters)')
       return
     }
-    const res = cancelApprovedLeave(cancelTargetId, cancellationReason.trim())
+    const res = await cancelApprovedLeave(cancelTargetId, cancellationReason.trim())
     if (res.success) {
       toast.success('Approved leave cancelled. Balance has been refunded to your account.')
       setCancelTargetId(null)
@@ -121,13 +121,13 @@ export default function MyLeavesPage() {
   }
 
   // Handle Clarification Reply
-  const handleConfirmClarifyReply = () => {
+  const handleConfirmClarifyReply = async () => {
     if (!clarifyTargetId) return
     if (clarifyReply.trim().length < 3) {
       toast.error('Please enter your reply (minimum 3 characters)')
       return
     }
-    const res = employeeReplyClarification(clarifyTargetId, clarifyReply.trim())
+    const res = await employeeReplyClarification(clarifyTargetId, clarifyReply.trim())
     if (res.success) {
       toast.success('Reply submitted. Your request is back in your manager’s approval queue.')
       setClarifyTargetId(null)

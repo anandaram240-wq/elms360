@@ -81,9 +81,9 @@ export default function HrApprovalsPage() {
   }, [displayList, departmentFilter, statusFilter, search, activeTab])
 
   // Handle HR Approve
-  const handleConfirmApprove = () => {
+  const handleConfirmApprove = async () => {
     if (!approveTargetId) return
-    const res = hrFinalApprove(approveTargetId, approveComment.trim() || undefined)
+    const res = await hrFinalApprove(approveTargetId, approveComment.trim() || undefined)
     if (res.success) {
       toast.success('Final HR approval granted! Leave balance permanently deducted and ledger updated.')
       setApproveTargetId(null)
@@ -94,13 +94,13 @@ export default function HrApprovalsPage() {
   }
 
   // Handle HR Reject
-  const handleConfirmReject = () => {
+  const handleConfirmReject = async () => {
     if (!rejectTargetId) return
     if (rejectReason.trim().length < 3) {
       toast.error('Please specify a rejection reason (minimum 3 characters)')
       return
     }
-    const res = hrReject(rejectTargetId, rejectReason.trim())
+    const res = await hrReject(rejectTargetId, rejectReason.trim())
     if (res.success) {
       toast.success('Leave request rejected by HR. Reserved balance released back to employee.')
       setRejectTargetId(null)
@@ -111,13 +111,13 @@ export default function HrApprovalsPage() {
   }
 
   // Handle Cancel
-  const handleConfirmCancel = () => {
+  const handleConfirmCancel = async () => {
     if (!cancelTargetId) return
     if (cancelReason.trim().length < 3) {
       toast.error('Please enter cancellation reason (minimum 3 characters)')
       return
     }
-    const res = cancelApprovedLeave(cancelTargetId, cancelReason.trim())
+    const res = await cancelApprovedLeave(cancelTargetId, cancelReason.trim())
     if (res.success) {
       toast.success('Approved leave cancelled. Balance refunded to employee with reversal ledger entry.')
       setCancelTargetId(null)

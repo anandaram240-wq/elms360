@@ -118,7 +118,7 @@ export default function ApplyLeavePage() {
 
     setSubmitting(true)
     try {
-      const res = submitLeave({
+      const res = await submitLeave({
         leaveTypeId,
         startDate: startDateStr,
         endDate: endDateStr,

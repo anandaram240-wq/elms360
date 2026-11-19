@@ -2,7 +2,6 @@ import { createServerClient } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import type { Database } from '@/types/database'
-import { createMockSupabaseClient } from '@/lib/db-store'
 
 export async function createClient(): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies()
@@ -19,13 +18,13 @@ export async function createClient(): Promise<SupabaseClient<Database>> {
 
   const isConfigured =
     supabaseUrl &&
-    supabaseUrl.startsWith('https://') &&
+    (supabaseUrl.startsWith('http://') || supabaseUrl.startsWith('https://')) &&
     !supabaseUrl.includes('your-project.supabase.co') &&
     supabaseKey &&
     supabaseKey !== 'your-anon-key-here'
 
   if (!isConfigured) {
-    return createMockSupabaseClient(activeUser) as unknown as SupabaseClient<Database>
+    throw new Error('DATABASE CONNECTION UNAVAILABLE: Supabase URL and Anon Key must be configured.')
   }
 
   try {
@@ -47,8 +46,8 @@ export async function createClient(): Promise<SupabaseClient<Database>> {
         },
       }
     )
-  } catch {
-    return createMockSupabaseClient(activeUser) as unknown as SupabaseClient<Database>
+  } catch (err: any) {
+    throw new Error(`DATABASE CONNECTION ERROR: ${err?.message || 'Failed to initialize Supabase server client'}`)
   }
 }
 
