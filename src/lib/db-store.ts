@@ -477,9 +477,50 @@ export function createMockSupabaseClient(activeUser?: any) {
           error: null,
         }
       },
+      onAuthStateChange(callback: (event: string, session: any) => void) {
+        return {
+          data: {
+            subscription: {
+              unsubscribe: () => {},
+            },
+          },
+        }
+      },
+      async updateUser(data: any) {
+        return { data: { user: activeUser }, error: null }
+      },
+      async resetPasswordForEmail(email: string) {
+        return { data: {}, error: null }
+      },
+      async exchangeCodeForSession(code: string) {
+        return { data: { session: null }, error: null }
+      },
       async signOut() {
         return { error: null }
       },
+    },
+    channel(name: string, _opts?: any) {
+      const ch: any = {
+        on(_type: string, _optsOrCb: any, _callback?: any) {
+          return ch
+        },
+        subscribe(callback?: (status: string, err?: any) => void) {
+          if (callback) {
+            setTimeout(() => callback('SUBSCRIBED'), 0)
+          }
+          return ch
+        },
+        unsubscribe() {
+          return Promise.resolve('ok')
+        },
+        send() {
+          return Promise.resolve('ok')
+        },
+      }
+      return ch
+    },
+    removeChannel(_channel: any) {
+      return Promise.resolve('ok')
     },
     storage: {
       from(bucket: string) {
