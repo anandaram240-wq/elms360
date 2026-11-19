@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import {
   History,
   Download,
@@ -90,6 +91,7 @@ export default function AuditLogsPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    toast.success(`Exported ${logs.length} audit records to CSV`)
   }
 
   const columns: ColumnDef<any>[] = [

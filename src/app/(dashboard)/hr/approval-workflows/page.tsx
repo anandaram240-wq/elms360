@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import {
   GitBranch,
   Plus,
@@ -129,6 +130,7 @@ export default function ApprovalWorkflowsPage() {
           maxDurationDays: workflowForm.maxDurationDays ? Number(workflowForm.maxDurationDays) : undefined,
           isDefault: workflowForm.isDefault,
         })
+        toast.success(`Workflow ${workflowForm.name} updated`)
       } else {
         await createApprovalWorkflow({
           name: workflowForm.name,
@@ -139,6 +141,7 @@ export default function ApprovalWorkflowsPage() {
           maxDurationDays: workflowForm.maxDurationDays ? Number(workflowForm.maxDurationDays) : undefined,
           isDefault: workflowForm.isDefault,
         })
+        toast.success(`Workflow ${workflowForm.name} created`)
       }
       setWorkflowModalOpen(false)
       loadData()
@@ -150,6 +153,7 @@ export default function ApprovalWorkflowsPage() {
   const handleDeleteWorkflow = async (id: string) => {
     if (!confirm('Are you sure you want to delete this approval workflow?')) return
     await deleteApprovalWorkflow(id)
+    toast.success('Workflow deleted')
     loadData()
   }
 
@@ -175,6 +179,7 @@ export default function ApprovalWorkflowsPage() {
         approverType: stepForm.approverType,
         isMandatory: stepForm.isMandatory,
       })
+      toast.success(`Added approval step: ${stepForm.stepName}`)
       setStepModalOpen(false)
       loadData()
     } finally {
@@ -185,6 +190,7 @@ export default function ApprovalWorkflowsPage() {
   const handleDeleteStep = async (stepId: string) => {
     if (!confirm('Delete this approval step?')) return
     await deleteWorkflowStep(stepId)
+    toast.success('Approval step removed')
     loadData()
   }
 

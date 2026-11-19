@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import {
   BarChart3,
   Download,
@@ -272,6 +273,7 @@ export default function HRReportsPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    toast.success(`Exported ${activeTab} report to CSV`)
   }
 
   return (
