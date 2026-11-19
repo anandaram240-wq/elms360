@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   Loader2,
   ShieldAlert,
+  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -70,12 +71,30 @@ export default function ApplyLeavePage() {
   // Selected leave type details
   const selectedType = leaveTypes.find((t) => t.leaveTypeId === leaveTypeId)
 
-  // Step 1 Validation
+  // Step 1 Validation & Weekend Detection
+  const hasWeekendOnly = React.useMemo(() => {
+    if (!startDate || !endDate) return false
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    let cur = new Date(start)
+    let hasWorkingDay = false
+    while (cur <= end) {
+      const day = cur.getDay() // 0 = Sun, 6 = Sat
+      if (day !== 0 && day !== 6) {
+        hasWorkingDay = true
+        break
+      }
+      cur.setDate(cur.getDate() + 1)
+    }
+    return !hasWorkingDay
+  }, [startDate, endDate])
+
   const canProceedStep1 =
     Boolean(leaveTypeId) &&
     Boolean(startDate) &&
     Boolean(endDate) &&
     Boolean(startDate && endDate && endDate >= startDate) &&
+    !hasWeekendOnly &&
     reason.trim().length >= 20
 
   // Calculate duration when moving to Step 2
@@ -208,6 +227,53 @@ export default function ApplyLeavePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Quick Test Preset Buttons */}
+            <div className="rounded-xl border border-blue-200 bg-blue-50/80 dark:bg-blue-950/40 p-4 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <span className="text-xs font-semibold text-blue-900 dark:text-blue-200 uppercase tracking-wide">
+                  Quick Fill Test Presets (Guaranteed Working Days)
+                </span>
+              </div>
+              <p className="text-xs text-blue-800/80 dark:text-blue-300">
+                Click below to instantly populate valid weekday test dates and policy-compliant descriptions:
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const cl = leaveTypes.find((t) => t.leaveTypeCode === 'CL') || leaveTypes[0]
+                    if (cl) setLeaveTypeId(cl.leaveTypeId)
+                    setStartDate(new Date(2026, 10, 24)) // 24 Nov 2026 (Tuesday)
+                    setEndDate(new Date(2026, 10, 25))   // 25 Nov 2026 (Wednesday)
+                    setDayType('FULL_DAY')
+                    setReason('Attending family wedding ceremony and scheduled personal commitments.')
+                  }}
+                  className="bg-white hover:bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:hover:bg-blue-900 text-xs font-medium border-blue-200"
+                >
+                  ⚡ 24–25 Nov 2026 (Tue–Wed • 2 Days CL)
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const pl = leaveTypes.find((t) => t.leaveTypeCode === 'PL') || leaveTypes[0]
+                    if (pl) setLeaveTypeId(pl.leaveTypeId)
+                    setStartDate(new Date(2026, 11, 1)) // 1 Dec 2026 (Tuesday)
+                    setEndDate(new Date(2026, 11, 2))   // 2 Dec 2026 (Wednesday)
+                    setDayType('FULL_DAY')
+                    setReason('Annual family vacation and scheduled travel out of town.')
+                  }}
+                  className="bg-white hover:bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:hover:bg-blue-900 text-xs font-medium border-blue-200"
+                >
+                  ⚡ 1–2 Dec 2026 (Tue–Wed • 2 Days PL)
+                </Button>
+              </div>
+            </div>
+
             {/* Leave Type Select */}
             <div className="space-y-2">
               <Label htmlFor="leaveType">Leave Type <span className="text-destructive">*</span></Label>
@@ -267,6 +333,29 @@ export default function ApplyLeavePage() {
                 />
               </div>
             </div>
+
+            {/* Live Date Schedule Breakdown & Weekend Warning */}
+            {startDate && endDate && hasWeekendOnly && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-4 space-y-1.5 text-amber-900 dark:text-amber-200">
+                <div className="flex items-center gap-2 font-semibold text-sm text-amber-800 dark:text-amber-300">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <span>0 Working Days Selected (Weekly Off / Weekend)</span>
+                </div>
+                <p className="text-xs leading-relaxed">
+                  The selected date range (<strong>{format(startDate, 'EEE dd MMM yyyy')}</strong> {endDate > startDate ? `to ${format(endDate, 'EEE dd MMM yyyy')}` : ''}) consists solely of weekends (Saturday / Sunday).
+                  Company policy automatically exempts weekends so 0 days can be deducted. Please select weekdays (Monday–Friday) or use one of the Quick Fill presets above.
+                </p>
+              </div>
+            )}
+
+            {startDate && endDate && !hasWeekendOnly && (
+              <div className="flex items-center gap-2 p-3 rounded-lg border border-green-200 bg-green-50/70 dark:bg-green-950/30 text-xs text-green-900 dark:text-green-300">
+                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
+                <span>
+                  Valid schedule: <strong>{format(startDate, 'EEEE, dd MMM yyyy')}</strong> {endDate > startDate ? `to ${format(endDate, 'EEEE, dd MMM yyyy')}` : ''} (Includes working weekdays).
+                </span>
+              </div>
+            )}
 
             {/* Day Type Selection */}
             <div className="space-y-2">
@@ -598,11 +687,13 @@ export default function ApplyLeavePage() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!confirmed || submitting || (calcResult && calcResult.workingDays <= 0)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold gap-2"
+              disabled={!confirmed || submitting || !calcResult || calcResult.workingDays <= 0}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              Submit Leave Application
+              {calcResult && calcResult.workingDays <= 0
+                ? 'Cannot Submit (0 Working Days)'
+                : 'Submit Leave Application'}
             </Button>
           </CardFooter>
         </Card>

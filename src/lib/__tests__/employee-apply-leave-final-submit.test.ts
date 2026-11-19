@@ -45,12 +45,14 @@ describe('Employee Apply Leave Final Step Submission Pipeline', () => {
       (r) => !(r.employee_id === employee.id && r.start_date === testStartDate)
     )
 
-    // Check balance before
+    // Check balance before and ensure fresh test balance
     const balanceBefore = db.leave_balances.find(
       (b) => b.employee_id === employee.id && b.leave_type_id === clType.id && b.fiscal_year === 2026
     )!
-    const initialAvailable = balanceBefore.available_balance
-    const initialPending = balanceBefore.pending || 0
+    balanceBefore.available_balance = 10
+    balanceBefore.pending = 0
+    const initialAvailable = 10
+    const initialPending = 0
 
     // Insert leave request in DRAFT
     const { data: request, error: insertError } = await client
@@ -120,7 +122,7 @@ describe('Employee Apply Leave Final Step Submission Pipeline', () => {
       p_action: 'APPROVE',
       p_comments: 'Approved by engineering manager',
     })
-    assert.equal(mgrApprove?.success, true)
+    assert.equal((mgrApprove as any)?.success, true)
     assert.equal(savedRequest.status, 'PENDING_HR_APPROVAL')
     assert.equal(savedRequest.current_approver_id, hr.id)
 
@@ -138,7 +140,7 @@ describe('Employee Apply Leave Final Step Submission Pipeline', () => {
       p_action: 'APPROVE',
       p_comments: 'Approved by HR',
     })
-    assert.equal(hrApprove?.success, true)
+    assert.equal((hrApprove as any)?.success, true)
     assert.equal(savedRequest.status, 'APPROVED')
 
     // Final balance verified
