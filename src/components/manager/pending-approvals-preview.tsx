@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LeaveStatusBadge } from '@/components/shared/status-badge'
-import { approveRequest, rejectRequest } from '@/app/actions/manager/approval-actions'
+import { processApprovalAction } from '@/app/actions/manager/approval-actions'
 import { Check, X, ArrowRight, Calendar, User, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -45,8 +45,9 @@ export function PendingApprovalsPreview({
 
     try {
       if (actionType === 'APPROVE') {
-        const res = await approveRequest({
+        const res = await processApprovalAction({
           requestId: selectedReq.id,
+          action: 'APPROVE',
           comments: comment.trim() || undefined,
           idempotencyKey,
         })
@@ -58,8 +59,9 @@ export function PendingApprovalsPreview({
           toast.error(res.error || 'Failed to approve request')
         }
       } else {
-        const res = await rejectRequest({
+        const res = await processApprovalAction({
           requestId: selectedReq.id,
+          action: 'REJECT',
           reason: comment.trim(),
           idempotencyKey,
         })

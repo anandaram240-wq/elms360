@@ -94,8 +94,9 @@ function LoginFormContent() {
   const handleQuickDemo = async (email: string, roleName: string) => {
     setActiveRoleLoggingIn(roleName)
     setValue('email', email)
-    setValue('password', 'CorporateAccess2026!')
-    await executeSignIn(email, 'CorporateAccess2026!')
+    const demoPassword = process.env.NEXT_PUBLIC_DEMO_PASSWORD || 'Demo@2026!'
+    setValue('password', demoPassword)
+    await executeSignIn(email, demoPassword)
   }
 
   return (

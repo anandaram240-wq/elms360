@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/app/actions/auth'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { getMyPendingApprovals } from '@/app/actions/manager/approval-actions'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ROUTE_BY_ROLE } from '@/lib/constants'
 
@@ -29,19 +29,12 @@ export default async function ManagerLayout({
   // Fetch pending approvals count for sidebar badge
   let pendingCount = 0
   if (user.employeeId) {
-    const admin = createAdminClient()
-    const { count } = await admin
-      .from('leave_requests')
-      .select('id', { count: 'exact', head: true })
-      .eq('current_approver_id', user.employeeId)
-      .in('status', [
-        'PENDING_MANAGER_APPROVAL',
-        'PENDING_HR_APPROVAL',
-        'PENDING_ADDITIONAL_APPROVAL',
-        'CLARIFICATION_REQUESTED',
-      ])
-
-    pendingCount = count || 0
+    try {
+      const { total } = await getMyPendingApprovals({ pageSize: 1 })
+      pendingCount = total || 0
+    } catch {
+      pendingCount = 0
+    }
   }
 
   return (

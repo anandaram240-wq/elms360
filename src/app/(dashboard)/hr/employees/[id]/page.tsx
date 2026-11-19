@@ -3,6 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import {
   ArrowLeft,
   User,
@@ -147,11 +148,14 @@ export default function EmployeeDetailPage() {
       })
       if (res.success) {
         setStatusMessage({ text: 'Profile changes saved successfully.', type: 'success' })
+        toast.success('Profile changes saved successfully')
       } else {
         setStatusMessage({ text: res.error || 'Failed to save changes.', type: 'error' })
+        toast.error(res.error || 'Failed to save changes')
       }
     } catch (err: any) {
       setStatusMessage({ text: err.message, type: 'error' })
+      toast.error(err.message)
     } finally {
       setIsSaving(false)
     }
@@ -162,9 +166,14 @@ export default function EmployeeDetailPage() {
     if (!newDepartmentId) return
     setIsSaving(true)
     try {
-      await transferDepartment(employeeId, newDepartmentId, new Date().toISOString().split('T')[0])
-      setEmployee({ ...employee, department_id: newDepartmentId })
-      setStatusMessage({ text: 'Department transfer recorded successfully.', type: 'success' })
+      const res = await transferDepartment(employeeId, newDepartmentId, new Date().toISOString().split('T')[0])
+      if (res.success) {
+        setEmployee({ ...employee, department_id: newDepartmentId })
+        setStatusMessage({ text: 'Department transfer recorded successfully.', type: 'success' })
+        toast.success('Department transfer recorded successfully')
+      } else {
+        toast.error(res.error || 'Transfer failed')
+      }
     } finally {
       setIsSaving(false)
     }
@@ -175,9 +184,14 @@ export default function EmployeeDetailPage() {
     if (!newManagerId) return
     setIsSaving(true)
     try {
-      await changeManager(employeeId, newManagerId, new Date().toISOString().split('T')[0])
-      setEmployee({ ...employee, manager_id: newManagerId })
-      setStatusMessage({ text: 'Reporting manager updated successfully.', type: 'success' })
+      const res = await changeManager(employeeId, newManagerId, new Date().toISOString().split('T')[0])
+      if (res.success) {
+        setEmployee({ ...employee, manager_id: newManagerId })
+        setStatusMessage({ text: 'Reporting manager updated successfully.', type: 'success' })
+        toast.success('Reporting manager updated successfully')
+      } else {
+        toast.error(res.error || 'Failed to update manager')
+      }
     } finally {
       setIsSaving(false)
     }
@@ -190,9 +204,11 @@ export default function EmployeeDetailPage() {
       if (employee.is_active) {
         await deactivateEmployee(employeeId, 'Deactivated by HR administrator')
         setEmployee({ ...employee, is_active: false, employment_status: 'INACTIVE' })
+        toast.success('Employee deactivated')
       } else {
         await reactivateEmployee(employeeId)
         setEmployee({ ...employee, is_active: true, employment_status: 'ACTIVE' })
+        toast.success('Employee reactivated')
       }
       setStatusMessage({ text: `Employee ${employee.is_active ? 'deactivated' : 'reactivated'}.`, type: 'success' })
     } finally {

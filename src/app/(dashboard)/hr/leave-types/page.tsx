@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import {
   FileText,
   Plus,
@@ -131,6 +132,7 @@ export default function LeaveTypesManagementPage() {
           displayOrder: formData.displayOrder,
         })
         if (!res.success) throw new Error(res.error)
+        toast.success(`Leave type ${formData.name} updated`)
       } else {
         const res = await createLeaveType({
           name: formData.name,
@@ -145,11 +147,13 @@ export default function LeaveTypesManagementPage() {
           displayOrder: formData.displayOrder,
         })
         if (!res.success) throw new Error(res.error)
+        toast.success(`Leave type ${formData.name} created`)
       }
       setModalOpen(false)
       loadData()
     } catch (err: any) {
       setErrorMsg(err.message || 'Operation failed')
+      toast.error(err.message || 'Operation failed')
     } finally {
       setIsSubmitting(false)
     }
@@ -160,6 +164,7 @@ export default function LeaveTypesManagementPage() {
     setLeaveTypes((prev) =>
       prev.map((t) => (t.id === id ? { ...t, is_active: !currentStatus } : t))
     )
+    toast.success(`Leave type ${!currentStatus ? 'activated' : 'disabled'}`)
   }
 
   const handleMoveOrder = async (index: number, direction: 'up' | 'down') => {
@@ -173,6 +178,7 @@ export default function LeaveTypesManagementPage() {
 
     setLeaveTypes(newOrder)
     await reorderLeaveTypes(newOrder.map((t) => t.id))
+    toast.success('Display order updated')
   }
 
   return (

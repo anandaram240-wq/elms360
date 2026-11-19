@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import {
   Settings,
   Save,
@@ -67,8 +68,9 @@ export default function HRSettingsPage() {
       })
       if (res.success) {
         setSuccessMsg('Organization settings updated successfully.')
+        toast.success('Organization settings updated successfully')
       } else {
-        alert(res.error || 'Failed to update settings')
+        toast.error(res.error || 'Failed to update settings')
       }
     } finally {
       setIsSaving(false)

@@ -3,6 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { ArrowLeft, UserPlus, Save, Building, Briefcase, Calendar, Shield, Clock } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Button } from '@/components/ui/button'
@@ -101,9 +102,11 @@ export default function NewEmployeePage() {
       })
 
       if (res.success) {
+        toast.success(`Employee ${formData.fullName} onboarded successfully!`)
         router.push('/hr/employees')
       } else {
         setErrorMsg(res.error || 'Failed to create employee')
+        toast.error(res.error || 'Failed to create employee')
       }
     } catch (err: any) {
       setErrorMsg(err?.message || 'An unexpected error occurred')

@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import {
   FileSpreadsheet,
   Plus,
@@ -170,6 +171,7 @@ export default function LeavePoliciesPage() {
           changeReason: formData.changeReason || 'Policy terms revision',
         })
         if (!res.success) throw new Error(res.error)
+        toast.success(`Policy updated: Published Version ${(selectedPolicy?.version || 1) + 1}`)
       } else {
         const res = await createLeavePolicy({
           name: formData.name,
@@ -187,11 +189,13 @@ export default function LeavePoliciesPage() {
           effectiveFrom: formData.effectiveFrom,
         })
         if (!res.success) throw new Error(res.error)
+        toast.success(`Policy ${formData.name} created successfully`)
       }
       setPolicyModalOpen(false)
       loadData()
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to save policy')
+      toast.error(err.message || 'Failed to save policy')
     } finally {
       setIsSubmitting(false)
     }
@@ -201,7 +205,12 @@ export default function LeavePoliciesPage() {
     if (!selectedPolicy || selectedEmployeeIds.length === 0) return
     setIsSubmitting(true)
     try {
-      await assignPolicyToEmployees(selectedPolicy.id, selectedEmployeeIds)
+      const res = await assignPolicyToEmployees(selectedPolicy.id, selectedEmployeeIds)
+      if (res.success) {
+        toast.success(`Assigned ${selectedPolicy.name} to ${selectedEmployeeIds.length} employees`)
+      } else {
+        toast.error(res.error || 'Failed to assign policy')
+      }
       setAssignModalOpen(false)
       setSelectedEmployeeIds([])
       loadData()

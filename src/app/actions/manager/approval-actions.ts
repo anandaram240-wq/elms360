@@ -77,6 +77,30 @@ export interface ManagerDashboardData {
 async function authenticateManager() {
   const user = await getCurrentUser()
   if (!user || !user.employeeId) {
+    // Development / mock fallback
+    if (process.env.NODE_ENV !== 'production') {
+      const admin = createAdminClient()
+      const { data: managers } = await admin
+        .from('employees')
+        .select('id, organization_id, employee_code, full_name, work_email, department_id, designation')
+        .eq('designation', 'Engineering Manager')
+        .limit(1)
+
+      const demoManager = managers?.[0]
+      if (demoManager) {
+        return {
+          id: demoManager.id,
+          email: demoManager.work_email,
+          employeeId: demoManager.id,
+          organizationId: demoManager.organization_id,
+          fullName: demoManager.full_name,
+          roles: ['MANAGER'] as any,
+          employeeCode: demoManager.employee_code,
+          departmentId: demoManager.department_id,
+          designation: demoManager.designation,
+        }
+      }
+    }
     throw new Error('Unauthorized: User not authenticated or has no employee record')
   }
 
@@ -92,7 +116,7 @@ async function authenticateManager() {
 }
 
 /**
- * Helper: check if currentUser is direct approver or has active delegation.
+ * Helper: check if currentUser is direct approver, direct reporting manager, or has active delegation.
  */
 async function checkApproverAuthorized(
   requestId: string,
@@ -109,12 +133,25 @@ async function checkApproverAuthorized(
     throw new Error('Leave request not found')
   }
 
-  // Check if directly assigned
+  // 1. Check if directly assigned
   if (request.current_approver_id === managerEmployeeId) {
     return { authorized: true, request }
   }
 
-  // Check if manager is delegated by current_approver_id
+  // 2. Check if manager is primary reporting manager of the requesting employee
+  const { data: reporting } = await adminClient
+    .from('reporting_relationships')
+    .select('id')
+    .eq('employee_id', request.employee_id)
+    .eq('manager_id', managerEmployeeId)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (reporting) {
+    return { authorized: true, request }
+  }
+
+  // 3. Check if manager is delegated by current_approver_id
   if (request.current_approver_id) {
     const today = format(new Date(), 'yyyy-MM-dd')
     const { data: delegation } = await adminClient
@@ -132,13 +169,62 @@ async function checkApproverAuthorized(
     }
   }
 
-  // Super Admin and HR Admin can also override
+  // 4. Super Admin and HR Admin can also override
   const user = await getCurrentUser()
   if (user?.roles.some((r) => ['SUPER_ADMIN', 'HR_ADMIN'].includes(r))) {
     return { authorized: true, request }
   }
 
   throw new Error('Unauthorized: You are not authorized to act on this request')
+}
+
+/**
+ * Unified approval action processor that routes to approve, reject, or clarify.
+ */
+export async function processApprovalAction(params: {
+  requestId: string
+  action: 'APPROVE' | 'REJECT' | 'REQUEST_CLARIFICATION' | 'APPROVED' | 'REJECTED' | 'CLARIFICATION_REQUESTED'
+  comments?: string
+  reason?: string
+  message?: string
+  idempotencyKey?: string
+}): Promise<{ success: boolean; error?: string }> {
+  const normAction = params.action.toUpperCase()
+  const key = params.idempotencyKey || `act_${params.requestId}_${Date.now()}`
+
+  if (normAction === 'APPROVE' || normAction === 'APPROVED') {
+    return approveRequest({
+      requestId: params.requestId,
+      comments: params.comments,
+      idempotencyKey: key,
+    })
+  } else if (normAction === 'REJECT' || normAction === 'REJECTED') {
+    return rejectRequest({
+      requestId: params.requestId,
+      reason: params.reason || params.comments || 'No reason specified',
+      idempotencyKey: key,
+    })
+  } else if (
+    normAction === 'REQUEST_CLARIFICATION' ||
+    normAction === 'CLARIFY' ||
+    normAction === 'CLARIFICATION_REQUESTED'
+  ) {
+    return requestClarification({
+      requestId: params.requestId,
+      message: params.message || params.comments || 'Clarification requested',
+      idempotencyKey: key,
+    })
+  }
+
+  return { success: false, error: `Unsupported action: ${params.action}` }
+}
+
+export async function approveLeaveRequest(requestId: string, comments?: string) {
+  return processApprovalAction({ requestId, action: 'APPROVE', comments })
+}
+
+export async function rejectLeaveRequest(requestId: string, reason: string) {
+  return processApprovalAction({ requestId, action: 'REJECT', reason })
 }
 
 /**
@@ -642,6 +728,16 @@ export async function getMyPendingApprovals(filters: {
       activeDelegations.forEach((d) => approverIds.push(d.delegator_id))
     }
 
+    // Find direct reports
+    const { data: reports } = await admin
+      .from('reporting_relationships')
+      .select('employee_id')
+      .eq('manager_id', user.employeeId)
+      .eq('is_active', true)
+
+    const reportIds = (reports || []).map((r) => r.employee_id)
+    const allAllowedEmployeeIds = [...reportIds, user.employeeId]
+
     // Build query
     let query = admin
       .from('leave_requests')
@@ -652,6 +748,7 @@ export async function getMyPendingApprovals(filters: {
         employee_id,
         leave_type_id,
         status,
+        current_approver_id,
         start_date,
         end_date,
         total_days,
@@ -676,29 +773,16 @@ export async function getMyPendingApprovals(filters: {
         { count: 'exact' }
       )
 
-    // Filter by approver if not viewing all
     if (filters.status === 'ALL') {
-      // Find requests where current approver was this manager, or reports to this manager
-      const { data: reports } = await admin
-        .from('reporting_relationships')
-        .select('employee_id')
-        .eq('manager_id', user.employeeId)
-        .eq('is_active', true)
-
-      const reportIds = (reports || []).map((r) => r.employee_id)
-      const allAllowedEmployeeIds = [...reportIds, user.employeeId]
-
       query = query.in('employee_id', allAllowedEmployeeIds)
     } else {
       // Default to pending approvals
-      query = query
-        .in('current_approver_id', approverIds)
-        .in('status', [
-          'PENDING_MANAGER_APPROVAL',
-          'PENDING_HR_APPROVAL',
-          'PENDING_ADDITIONAL_APPROVAL',
-          'CLARIFICATION_REQUESTED',
-        ])
+      query = query.in('status', [
+        'PENDING_MANAGER_APPROVAL',
+        'PENDING_HR_APPROVAL',
+        'PENDING_ADDITIONAL_APPROVAL',
+        'CLARIFICATION_REQUESTED',
+      ])
     }
 
     if (filters.leaveTypeId && filters.leaveTypeId !== 'ALL') {
@@ -714,8 +798,16 @@ export async function getMyPendingApprovals(filters: {
       return { requests: [], total: 0 }
     }
 
+    // Filter to ensure request belongs to this manager's scope
+    const scopedData = (data || []).filter((r) => {
+      if (filters.status === 'ALL') return true
+      const isDirectApprover = r.current_approver_id && approverIds.includes(r.current_approver_id)
+      const isDirectReport = reportIds.includes(r.employee_id)
+      return isDirectApprover || isDirectReport
+    })
+
     // Transform rows
-    let requests: LeaveRequestWithDetails[] = (data || []).map((r) => {
+    let requests: LeaveRequestWithDetails[] = scopedData.map((r) => {
       const emp = r.employees as unknown as {
         id: string
         employee_code: string

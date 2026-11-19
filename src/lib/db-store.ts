@@ -12,6 +12,61 @@ import {
   SEED_LEAVE_REQUESTS,
 } from './seed-data'
 
+function getFs() {
+  if (typeof window === 'undefined') {
+    try {
+      return eval('require')('fs')
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+function getPath() {
+  if (typeof window === 'undefined') {
+    try {
+      return eval('require')('path')
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+function getDevDbPath(): string | null {
+  const p = getPath()
+  if (p && typeof process !== 'undefined' && process.cwd) {
+    return p.join(process.cwd(), '.elms360_dev_db.json')
+  }
+  return null
+}
+
+function persistDb(state: DbState): void {
+  if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
+    try {
+      const fs = getFs()
+      const devDbPath = getDevDbPath()
+      if (fs && devDbPath) {
+        fs.writeFileSync(devDbPath, JSON.stringify(state, null, 2), 'utf-8')
+      }
+    } catch { /* ignore write errors in constrained environments */ }
+  }
+}
+
+function loadPersistedDb(): DbState | null {
+  if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
+    try {
+      const fs = getFs()
+      const devDbPath = getDevDbPath()
+      if (fs && devDbPath && fs.existsSync(devDbPath)) {
+        return JSON.parse(fs.readFileSync(devDbPath, 'utf-8')) as DbState
+      }
+    } catch { /* ignore parse errors, fall through to seed */ }
+  }
+  return null
+}
+
 export interface DbState {
   organizations: any[]
   organization_settings: any[]
@@ -145,7 +200,7 @@ export function getInitialDbState(): DbState {
 
 export function getDb(): DbState {
   if (!globalForDb.__elms_db) {
-    globalForDb.__elms_db = getInitialDbState()
+    globalForDb.__elms_db = loadPersistedDb() ?? getInitialDbState()
   }
   return globalForDb.__elms_db
 }
@@ -469,6 +524,7 @@ export class MockQueryBuilder {
         table.push(newItem)
         created.push(this.resolveRelationships(newItem))
       }
+      persistDb(db)
       return {
         data: Array.isArray(this.payload) ? created : created[0],
         count: created.length,
@@ -490,6 +546,7 @@ export class MockQueryBuilder {
           updated.push(this.resolveRelationships(table[i]))
         }
       }
+      persistDb(db)
       return {
         data: updated.length === 1 ? updated[0] : updated,
         count: updated.length,
@@ -516,6 +573,7 @@ export class MockQueryBuilder {
           results.push(this.resolveRelationships(newItem))
         }
       }
+      persistDb(db)
       return {
         data: Array.isArray(this.payload) ? results : results[0],
         count: results.length,
@@ -535,6 +593,7 @@ export class MockQueryBuilder {
         }
       }
       db[this.tableName] = remaining
+      persistDb(db)
       return {
         data: deleted,
         count: deleted.length,
@@ -611,22 +670,34 @@ export function createMockSupabaseClient(activeUser?: any) {
         if (req) {
           req.status = 'PENDING_MANAGER_APPROVAL'
           req.updated_at = new Date().toISOString()
+          persistDb(db)
         }
         return { data: true, error: null }
       }
       if (functionName === 'process_approval_action') {
         const requestId = params?.p_request_id
-        const action = params?.p_action
+        const action = String(params?.p_action || '').toUpperCase()
+        const comments = params?.p_comments
         const req = db.leave_requests.find((r) => r.id === requestId)
         if (req) {
-          if (action === 'APPROVE') {
+          if (action === 'APPROVE' || action === 'APPROVED') {
             req.status = req.status === 'PENDING_MANAGER_APPROVAL' ? 'PENDING_HR_APPROVAL' : 'APPROVED'
-          } else if (action === 'REJECT') {
+            if (req.status === 'APPROVED') {
+              req.approved_at = new Date().toISOString()
+            }
+          } else if (action === 'REJECT' || action === 'REJECTED') {
             req.status = 'REJECTED'
-          } else if (action === 'REQUEST_CLARIFICATION' || action === 'CLARIFY') {
+            req.rejection_reason = comments || req.rejection_reason
+          } else if (
+            action === 'REQUEST_CLARIFICATION' ||
+            action === 'CLARIFY' ||
+            action === 'CLARIFICATION_REQUESTED'
+          ) {
             req.status = 'CLARIFICATION_REQUESTED'
+            req.clarification_message = comments || req.clarification_message
           }
           req.updated_at = new Date().toISOString()
+          persistDb(db)
         }
         return { data: { success: true, newStatus: req?.status || 'APPROVED' }, error: null }
       }

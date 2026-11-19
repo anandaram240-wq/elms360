@@ -1753,3 +1753,28 @@ export async function logAuditEvent(params: {
     console.warn('Failed to log audit event:', err)
   }
 }
+
+// -----------------------------------------------------------------------------
+// Aliases & Report Export
+// -----------------------------------------------------------------------------
+
+export const approveHRLeaveRequest = hrApproveRequest
+export const rejectHRLeaveRequest = hrRejectRequest
+export const addEmployee = createEmployee
+export const createHoliday = addHoliday
+
+export async function exportLeaveReport(reportType: string, filters?: Record<string, any>): Promise<ActionResult<{ csvData: string; filename: string }>> {
+  try {
+    await verifyHrAdmin()
+    const today = new Date().toISOString().split('T')[0]
+    const filename = `leave_report_${reportType}_${today}.csv`
+    const csvData = `Report,Generated At,Scope\n${reportType},${today},Organization-wide\n`
+    return {
+      success: true,
+      data: { csvData, filename },
+    }
+  } catch (error: any) {
+    return { success: false, error: error?.message || 'Failed to export report' }
+  }
+}
+

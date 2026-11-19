@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import {
   CalendarCheck,
   Search,
@@ -121,6 +122,7 @@ export default function HRLeaveRequestsPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    toast.success(`Exported ${requests.length} leave requests to CSV`)
   }
 
   // Quick Approve/Reject execution
@@ -129,9 +131,19 @@ export default function HRLeaveRequestsPage() {
     setIsSubmitting(true)
     try {
       if (actionType === 'APPROVE') {
-        await hrApproveRequest({ requestId: selectedReq.id, comments })
+        const res = await hrApproveRequest({ requestId: selectedReq.id, comments })
+        if (res.success) {
+          toast.success(`Approved ${selectedReq.employeeName}'s leave request`)
+        } else {
+          toast.error(res.error || 'Failed to approve request')
+        }
       } else {
-        await hrRejectRequest({ requestId: selectedReq.id, reason: comments || 'Rejected by HR' })
+        const res = await hrRejectRequest({ requestId: selectedReq.id, reason: comments || 'Rejected by HR' })
+        if (res.success) {
+          toast.success(`Rejected ${selectedReq.employeeName}'s leave request`)
+        } else {
+          toast.error(res.error || 'Failed to reject request')
+        }
       }
       setSelectedReq(null)
       setActionType(null)

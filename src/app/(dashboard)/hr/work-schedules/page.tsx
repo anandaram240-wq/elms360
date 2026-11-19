@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import {
   Clock,
   Plus,
@@ -134,6 +135,7 @@ export default function WorkSchedulesPage() {
           hoursPerDay: Number(formData.hoursPerDay),
           isDefault: formData.isDefault,
         })
+        toast.success(`Work schedule ${formData.name} updated`)
       } else {
         await createWorkSchedule({
           name: formData.name,
@@ -142,6 +144,7 @@ export default function WorkSchedulesPage() {
           hoursPerDay: Number(formData.hoursPerDay),
           isDefault: formData.isDefault,
         })
+        toast.success(`Work schedule ${formData.name} created`)
       }
       setModalOpen(false)
       loadData()
@@ -153,6 +156,7 @@ export default function WorkSchedulesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this work schedule?')) return
     await deleteWorkSchedule(id)
+    toast.success('Work schedule deleted')
     loadData()
   }
 
@@ -161,6 +165,7 @@ export default function WorkSchedulesPage() {
     setIsSubmitting(true)
     try {
       await assignWorkSchedule(selectedSchedule.id, selectedEmployeeIds)
+      toast.success(`Assigned ${selectedSchedule.name} to ${selectedEmployeeIds.length} employees`)
       setAssignModalOpen(false)
       setSelectedEmployeeIds([])
       loadData()

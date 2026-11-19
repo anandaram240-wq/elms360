@@ -15,9 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
-  approveRequest,
-  rejectRequest,
-  requestClarification,
+  processApprovalAction,
 } from '@/app/actions/manager/approval-actions'
 import {
   Check,
@@ -72,8 +70,9 @@ export function ApprovalDetailView({ data }: ApprovalDetailViewProps) {
 
     try {
       if (activeModal === 'APPROVE') {
-        const res = await approveRequest({
+        const res = await processApprovalAction({
           requestId: request.id,
+          action: 'APPROVE',
           comments: comment.trim() || undefined,
           idempotencyKey,
         })
@@ -90,8 +89,9 @@ export function ApprovalDetailView({ data }: ApprovalDetailViewProps) {
           setIsSubmitting(false)
           return
         }
-        const res = await rejectRequest({
+        const res = await processApprovalAction({
           requestId: request.id,
+          action: 'REJECT',
           reason: comment.trim(),
           idempotencyKey,
         })
@@ -108,8 +108,9 @@ export function ApprovalDetailView({ data }: ApprovalDetailViewProps) {
           setIsSubmitting(false)
           return
         }
-        const res = await requestClarification({
+        const res = await processApprovalAction({
           requestId: request.id,
+          action: 'REQUEST_CLARIFICATION',
           message: comment.trim(),
           idempotencyKey,
         })

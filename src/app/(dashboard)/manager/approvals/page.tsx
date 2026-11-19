@@ -6,9 +6,7 @@ import { useRouter } from 'next/navigation'
 import type { LeaveRequestWithDetails } from '@/types/app'
 import {
   getMyPendingApprovals,
-  approveRequest,
-  rejectRequest,
-  requestClarification,
+  processApprovalAction,
   bulkApproveRequests,
 } from '@/app/actions/manager/approval-actions'
 import { useManagerRealtime } from '@/hooks/use-manager-realtime'
@@ -172,8 +170,9 @@ export default function ApprovalsQueuePage() {
     try {
       if (activeModal === 'APPROVE' && targetRequest) {
         const idempotencyKey = `appr_${targetRequest.id}_${Date.now()}`
-        const res = await approveRequest({
+        const res = await processApprovalAction({
           requestId: targetRequest.id,
+          action: 'APPROVE',
           comments: modalComment.trim() || undefined,
           idempotencyKey,
         })
@@ -191,8 +190,9 @@ export default function ApprovalsQueuePage() {
           return
         }
         const idempotencyKey = `rej_${targetRequest.id}_${Date.now()}`
-        const res = await rejectRequest({
+        const res = await processApprovalAction({
           requestId: targetRequest.id,
+          action: 'REJECT',
           reason: modalComment.trim(),
           idempotencyKey,
         })
@@ -210,8 +210,9 @@ export default function ApprovalsQueuePage() {
           return
         }
         const idempotencyKey = `clar_${targetRequest.id}_${Date.now()}`
-        const res = await requestClarification({
+        const res = await processApprovalAction({
           requestId: targetRequest.id,
+          action: 'REQUEST_CLARIFICATION',
           message: modalComment.trim(),
           idempotencyKey,
         })

@@ -104,7 +104,7 @@ NODE_ENV=development
 
 To log in with the 27 preloaded employees from `004_seed_data.sql`:
 1. Follow the instructions in [DEMO_CREDENTIALS.md](file://./DEMO_CREDENTIALS.md).
-2. Run the provided SQL script in the Supabase SQL Editor to provision the demo auth users with password `DemoPassword123!` and link them to the employee records.
+2. Run the provided SQL script in the Supabase SQL Editor to provision the demo auth users with your configured demo password (see `.env.local.example`) and link them to the employee records.
 
 ---
 
@@ -127,13 +127,15 @@ npm run build
 
 ## 8. Demo Login Accounts
 
+All demo accounts use the password configured in your `.env.local` (default in dev: see `.env.local.example`).
+
 | Role | Email | Password | Description |
 |---|---|---|---|
-| **Super Admin** | `superadmin@abc-tech.com` | `DemoPassword123!` | System CTO, full access |
-| **HR Admin** | `hr1@abc-tech.com` | `DemoPassword123!` | HR Manager, policy & request approval |
-| **Engineering Manager** | `manager.eng@abc-tech.com` | `DemoPassword123!` | Approves team leaves |
-| **Senior Engineer** | `arjun.kumar@abc-tech.com` | `DemoPassword123!` | Employee with sample approved leave |
-| **Software Engineer** | `rahul.verma@abc-tech.com` | `DemoPassword123!` | Employee with pending leave request |
+| **Super Admin** | `superadmin@abc-tech.com` | `[see .env.local]` | System CTO, full access |
+| **HR Admin** | `hr1@abc-tech.com` | `[see .env.local]` | HR Manager, policy & request approval |
+| **Engineering Manager** | `manager.eng@abc-tech.com` | `[see .env.local]` | Approves team leaves |
+| **Senior Engineer** | `arjun.kumar@abc-tech.com` | `[see .env.local]` | Employee with sample approved leave |
+| **Software Engineer** | `rahul.verma@abc-tech.com` | `[see .env.local]` | Employee with pending leave request |
 
 Refer to [DEMO_CREDENTIALS.md](file://./DEMO_CREDENTIALS.md) for all 27 user profiles across Engineering, HR, Finance, Marketing, and Operations.
 

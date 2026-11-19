@@ -7,8 +7,8 @@
 
 ## 1. Demo User Accounts (27 Total)
 
-All demo accounts share the rotated evaluation password:
-**`CorporateAccess2026!`** (Rotated per V1.2 Security Policy)
+All demo accounts use the demo password configured in your local `.env.local` file.
+**Password**: `[see .env.local.example for demo setup]`
 
 ### 1.1 Executive & Super Admin
 | Employee Code | Name | Role | Email | Department |
@@ -72,7 +72,7 @@ All demo accounts share the rotated evaluation password:
 Because Supabase Auth manages `auth.users` through its secure internal authentication schema, you can initialize these users either via the Supabase Dashboard, Supabase CLI, or via a quick SQL script in the Supabase SQL Editor.
 
 ### Option A: Automatic Creation & Linking via Supabase SQL Editor
-Execute the following script in the Supabase SQL Editor (or psql connected with postgres privileges). It creates the auth users with password `DemoPassword123!` and automatically links them to their employee and profile records:
+Execute the following script in the Supabase SQL Editor (or psql connected with postgres privileges). It creates the auth users with your configured demo password (replace `<DEMO_PASSWORD>` with the value in your local `.env.local`) and automatically links them to their employee and profile records:
 
 ```sql
 DO $$
@@ -106,8 +106,8 @@ BEGIN
       'authenticated',
       'authenticated',
       r.work_email,
-      -- Encrypted representation of 'DemoPassword123!'
-      crypt('DemoPassword123!', gen_salt('bf')),
+      -- Encrypted representation of your configured demo password (replace <DEMO_PASSWORD>)
+      crypt('<DEMO_PASSWORD>', gen_salt('bf')),
       NOW(),
       '{"provider":"email","providers":["email"]}',
       jsonb_build_object('full_name', r.full_name),

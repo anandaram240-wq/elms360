@@ -3,6 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import {
   ArrowLeft,
   Calendar,
@@ -151,8 +152,10 @@ export default function HRLeaveRequestDetailPage() {
       if (res.success) {
         setRequest((prev: any) => ({ ...prev, status: 'APPROVED' }))
         setStatusMsg({ text: 'Leave request approved successfully.', type: 'success' })
+        toast.success('Leave request approved successfully')
       } else {
         setStatusMsg({ text: res.error || 'Failed to approve', type: 'error' })
+        toast.error(res.error || 'Failed to approve')
       }
     } finally {
       setIsSubmitting(false)
@@ -162,6 +165,7 @@ export default function HRLeaveRequestDetailPage() {
   const handleReject = async () => {
     if (!comments.trim()) {
       setStatusMsg({ text: 'Please provide a reason for rejection.', type: 'error' })
+      toast.error('Please provide a reason for rejection')
       return
     }
     setIsSubmitting(true)
@@ -171,8 +175,10 @@ export default function HRLeaveRequestDetailPage() {
       if (res.success) {
         setRequest((prev: any) => ({ ...prev, status: 'REJECTED' }))
         setStatusMsg({ text: 'Leave request rejected.', type: 'success' })
+        toast.success('Leave request rejected')
       } else {
         setStatusMsg({ text: res.error || 'Failed to reject', type: 'error' })
+        toast.error(res.error || 'Failed to reject')
       }
     } finally {
       setIsSubmitting(false)
@@ -188,8 +194,10 @@ export default function HRLeaveRequestDetailPage() {
       if (res.success) {
         setRequest((prev: any) => ({ ...prev, status: 'CLARIFICATION_REQUESTED' }))
         setStatusMsg({ text: 'Clarification request sent to employee.', type: 'success' })
+        toast.success('Clarification requested from employee')
       } else {
         setStatusMsg({ text: res.error || 'Failed to request clarification', type: 'error' })
+        toast.error(res.error || 'Failed to request clarification')
       }
     } finally {
       setIsSubmitting(false)
@@ -209,8 +217,9 @@ export default function HRLeaveRequestDetailPage() {
         setRequest((prev: any) => ({ ...prev, status: overrideStatus }))
         setOverrideModalOpen(false)
         setStatusMsg({ text: `Admin override applied: Status changed to ${overrideStatus}.`, type: 'success' })
+        toast.success(`Admin override applied: ${overrideStatus}`)
       } else {
-        alert(res.error || 'Admin override failed')
+        toast.error(res.error || 'Admin override failed')
       }
     } finally {
       setIsSubmitting(false)

@@ -3,6 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import {
   Users,
   UserPlus,
@@ -146,6 +147,7 @@ export default function EmployeesDirectoryPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    toast.success(`Exported ${employees.length} employee records to CSV`)
   }
 
   // Deactivate
@@ -153,7 +155,12 @@ export default function EmployeesDirectoryPage() {
     if (!selectedEmp) return
     setIsSubmitting(true)
     try {
-      await deactivateEmployee(selectedEmp.id, deactivateReason)
+      const res = await deactivateEmployee(selectedEmp.id, deactivateReason)
+      if (res.success) {
+        toast.success(`Employee ${selectedEmp.full_name} deactivated`)
+      } else {
+        toast.error(res.error || 'Failed to deactivate employee')
+      }
       setDeactivateModalOpen(false)
       setDeactivateReason('')
       loadEmployees()
@@ -167,7 +174,12 @@ export default function EmployeesDirectoryPage() {
     if (!selectedEmp || !newManagerId) return
     setIsSubmitting(true)
     try {
-      await changeManager(selectedEmp.id, newManagerId, new Date().toISOString().split('T')[0])
+      const res = await changeManager(selectedEmp.id, newManagerId, new Date().toISOString().split('T')[0])
+      if (res.success) {
+        toast.success(`Reporting manager updated for ${selectedEmp.full_name}`)
+      } else {
+        toast.error(res.error || 'Failed to update manager')
+      }
       setChangeManagerModalOpen(false)
       setNewManagerId('')
       loadEmployees()
@@ -184,7 +196,10 @@ export default function EmployeesDirectoryPage() {
       const res = await importEmployeesCSV(csvContent)
       setImportResult(res)
       if (res.imported > 0) {
+        toast.success(`Successfully imported ${res.imported} employees`)
         loadEmployees()
+      } else {
+        toast.error('No employees imported. Check error log.')
       }
     } finally {
       setIsSubmitting(false)

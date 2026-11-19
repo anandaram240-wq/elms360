@@ -4,9 +4,10 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/app/actions/auth'
-import { calculateWorkingDays, DayType } from '@/lib/leave-calculator'
+import { calculateWorkingDays, DayBreakdown } from '@/lib/date-utils'
 import type {
   LeaveStatus,
+  DayType,
   LeaveBalanceDisplay,
   LeaveRequestWithDetails,
   ApprovalActionWithActor,
@@ -47,6 +48,7 @@ export interface LeaveCalculationResult {
     value: number
     type: 'working' | 'weekend' | 'holiday'
   }>
+  perDay?: DayBreakdown[]
 }
 
 /**
@@ -75,8 +77,6 @@ export async function calculateLeaveDuration(
     .single()
 
   const weeklyOffDays = (org?.weekly_off_days as number[]) || [0, 6] // Default Sat/Sun off
-  const allDays = [0, 1, 2, 3, 4, 5, 6]
-  const workingDays = allDays.filter((d) => !weeklyOffDays.includes(d))
 
   // 2. Fetch holidays in date range
   const { data: holidayRows } = await supabase
@@ -85,17 +85,20 @@ export async function calculateLeaveDuration(
     .gte('date', params.startDate)
     .lte('date', params.endDate)
 
-  const holidays = (holidayRows || []).map((h) => new Date(h.date))
+  const holidays = (holidayRows || []).map((h) => String(h.date))
 
-  // 3. Calculate working days breakdown
-  const calc = calculateWorkingDays({
-    startDate: params.startDate,
-    endDate: params.endDate,
-    workingDays,
+  // 3. Calculate working days breakdown using timezone-safe date-utils
+  const dayTypeParam = (params.dayType === 'HALF_DAY_AM' || params.dayType === 'HALF_DAY_PM')
+    ? params.dayType
+    : 'FULL_DAY'
+
+  const calc = calculateWorkingDays(
+    params.startDate,
+    params.endDate,
+    weeklyOffDays,
     holidays,
-    dayType: params.dayType,
-    partialHours: params.partialHours,
-  })
+    dayTypeParam
+  )
 
   // 4. Fetch current balance
   const currentYear = new Date(params.startDate).getFullYear()
@@ -108,7 +111,7 @@ export async function calculateLeaveDuration(
     .maybeSingle()
 
   const currentBalance = balanceRow ? Number(balanceRow.available_balance) : 0
-  const remainingBalance = Number((currentBalance - calc.totalWorkingDays).toFixed(2))
+  const remainingBalance = Number((currentBalance - calc.workingDays).toFixed(2))
 
   // 5. Fetch leave policy & leave type for validation warnings
   const { data: leaveType } = await supabase
@@ -129,14 +132,14 @@ export async function calculateLeaveDuration(
   // Check balance sufficiency
   if (remainingBalance < 0 && !leaveType?.allows_negative_balance) {
     policyWarnings.push(
-      `Insufficient leave balance. You are requesting ${calc.totalWorkingDays} day(s), but only ${currentBalance} day(s) are available.`
+      `Insufficient leave balance. You are requesting ${calc.workingDays} day(s), but only ${currentBalance} day(s) are available.`
     )
   }
 
   // Check max consecutive days
-  if (policy?.max_consecutive_days && calc.totalWorkingDays > policy.max_consecutive_days) {
+  if (policy?.max_consecutive_days && calc.workingDays > policy.max_consecutive_days) {
     policyWarnings.push(
-      `Request duration (${calc.totalWorkingDays} days) exceeds maximum consecutive days allowed (${policy.max_consecutive_days} days).`
+      `Request duration (${calc.workingDays} days) exceeds maximum consecutive days allowed (${policy.max_consecutive_days} days).`
     )
   }
 
@@ -164,18 +167,19 @@ export async function calculateLeaveDuration(
   const approvalRoute: string[] = ['Reporting Manager Approval', 'HR Verification', 'Approved']
 
   return {
-    workingDays: calc.totalWorkingDays,
-    holidays: calc.skippedHolidays,
-    weekends: calc.skippedWeekends,
+    workingDays: calc.workingDays,
+    holidays: calc.holidayDays,
+    weekends: calc.weekendDays,
     policyWarnings,
     approvalRoute,
     currentBalance,
     remainingBalance,
-    dayBreakdown: calc.dayBreakdown.map((item) => ({
-      date: item.date.toISOString().split('T')[0],
-      value: item.value,
-      type: item.type,
+    dayBreakdown: calc.perDay.map((item) => ({
+      date: item.date,
+      value: item.type === 'WORKING_DAY' ? (dayTypeParam === 'FULL_DAY' ? 1 : 0.5) : 0,
+      type: item.type === 'WORKING_DAY' ? 'working' : item.type === 'WEEKLY_OFF' ? 'weekend' : 'holiday',
     })),
+    perDay: calc.perDay,
   }
 }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import {
   PieChart,
   Download,
@@ -143,6 +144,7 @@ export default function LeaveBalancesPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    toast.success(`Exported ${filteredBalances.length} balance records to CSV`)
   }
 
   // Handle Adjustment Submit
@@ -161,9 +163,10 @@ export default function LeaveBalancesPage() {
       if (res.success) {
         setAdjustModalOpen(false)
         setAdjustReason('')
+        toast.success(`Balance adjusted by ${adjustAmount > 0 ? '+' : ''}${adjustAmount} days`)
         loadBalances()
       } else {
-        alert(res.error || 'Failed to adjust balance')
+        toast.error(res.error || 'Failed to adjust balance')
       }
     } finally {
       setIsSubmitting(false)

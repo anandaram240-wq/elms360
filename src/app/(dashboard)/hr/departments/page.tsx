@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import {
   Building2,
   Plus,
@@ -112,6 +113,7 @@ export default function DepartmentsPage() {
           headEmployeeId: formData.headEmployeeId || undefined,
         })
         if (!res.success) throw new Error(res.error)
+        toast.success('Department updated successfully')
       } else {
         const res = await createDepartment({
           name: formData.name,
@@ -120,11 +122,13 @@ export default function DepartmentsPage() {
           headEmployeeId: formData.headEmployeeId || undefined,
         })
         if (!res.success) throw new Error(res.error)
+        toast.success('Department created successfully')
       }
       setModalOpen(false)
       loadData()
     } catch (err: any) {
       setErrorMsg(err.message || 'Operation failed')
+      toast.error(err.message || 'Operation failed')
     } finally {
       setIsSubmitting(false)
     }
@@ -134,8 +138,9 @@ export default function DepartmentsPage() {
     if (!confirm('Are you sure you want to delete this department?')) return
     const res = await deleteDepartment(id)
     if (!res.success) {
-      alert(res.error || 'Failed to delete department')
+      toast.error(res.error || 'Failed to delete department')
     } else {
+      toast.success('Department deleted successfully')
       loadData()
     }
   }

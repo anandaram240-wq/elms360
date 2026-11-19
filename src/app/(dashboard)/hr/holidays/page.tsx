@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 import {
   Calendar as CalendarIcon,
   Plus,
@@ -151,6 +152,7 @@ export default function HolidayCalendarsPage() {
           isOptional: formData.isOptional,
           description: formData.description,
         })
+        toast.success(`Holiday ${formData.name} updated`)
       } else {
         await addHoliday(activeCalendar.id, {
           name: formData.name,
@@ -159,6 +161,7 @@ export default function HolidayCalendarsPage() {
           isOptional: formData.isOptional,
           description: formData.description,
         })
+        toast.success(`Holiday ${formData.name} added`)
       }
       setHolidayModalOpen(false)
       loadCalendars()
@@ -170,6 +173,7 @@ export default function HolidayCalendarsPage() {
   const handleDeleteHoliday = async (id: string) => {
     if (!confirm('Are you sure you want to remove this holiday?')) return
     await deleteHoliday(id)
+    toast.success('Holiday deleted')
     loadCalendars()
   }
 
@@ -180,7 +184,10 @@ export default function HolidayCalendarsPage() {
       const res = await importHolidaysCSV(activeCalendar.id, csvContent)
       setImportResult(res)
       if (res.imported > 0) {
+        toast.success(`Imported ${res.imported} holidays`)
         loadCalendars()
+      } else {
+        toast.error('Failed to import holidays from CSV')
       }
     } finally {
       setIsSubmitting(false)
@@ -202,6 +209,7 @@ export default function HolidayCalendarsPage() {
         setCreateCalModalOpen(false)
         setNewCalName('')
         setNewCalLocation('')
+        toast.success(`Created calendar ${newCalName}`)
         loadCalendars()
       }
     } finally {
