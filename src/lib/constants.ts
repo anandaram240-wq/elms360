@@ -48,6 +48,9 @@ export const ROLE_LABELS: Record<RoleCode, string> = {
   EMPLOYEE: 'Employee',
 }
 
+// ---- Release Identifier ----
+export const RELEASE_IDENTIFIER = 'ELMS360_RELEASE_V1_2_RECOVERY'
+
 // ---- Dashboard routes by role ----
 export const ROUTE_BY_ROLE: Record<RoleCode, string> = {
   SUPER_ADMIN: '/admin/dashboard',

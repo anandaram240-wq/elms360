@@ -21,7 +21,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Lock, Mail, Loader2, AlertCircle, CalendarCheck, ShieldCheck } from 'lucide-react'
+import { Lock, Mail, Loader2, AlertCircle, CalendarCheck, ShieldCheck, Tag } from 'lucide-react'
+import { RELEASE_IDENTIFIER } from '@/lib/constants'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid work email address'),
@@ -85,7 +86,7 @@ function LoginFormContent() {
   // Helper to prefill demo accounts for convenience
   const fillDemo = (email: string) => {
     setValue('email', email)
-    setValue('password', 'DemoPassword123!')
+    setValue('password', 'CorporateAccess2026!')
   }
 
   return (
@@ -103,6 +104,12 @@ function LoginFormContent() {
           <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
             ABC Technologies • Enterprise Leave Management
           </p>
+          <div className="pt-1">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[11px] font-mono font-medium">
+              <Tag className="w-3 h-3" />
+              <span>{RELEASE_IDENTIFIER}</span>
+            </span>
+          </div>
         </div>
 
         {/* Login Card */}

@@ -7,8 +7,8 @@
 
 ## 1. Demo User Accounts (27 Total)
 
-All demo accounts share the standard development password:
-**`DemoPassword123!`**
+All demo accounts share the rotated evaluation password:
+**`CorporateAccess2026!`** (Rotated per V1.2 Security Policy)
 
 ### 1.1 Executive & Super Admin
 | Employee Code | Name | Role | Email | Department |

@@ -5,6 +5,7 @@ import { QueryProvider } from '@/providers/query-provider'
 import { AuthProvider } from '@/providers/auth-provider'
 import { ThemeProvider } from '@/providers/theme-provider'
 import { Toaster } from 'sonner'
+import { RELEASE_IDENTIFIER } from '@/lib/constants'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -14,6 +15,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'ELMS 360 | Enterprise Leave Management System',
   description: 'Enterprise Employee Leave Management System by ABC Technologies',
+  other: {
+    'release-id': RELEASE_IDENTIFIER,
+  },
 }
 
 export default function RootLayout({
