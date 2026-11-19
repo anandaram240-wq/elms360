@@ -4,6 +4,7 @@ import './globals.css'
 import { QueryProvider } from '@/providers/query-provider'
 import { AuthProvider } from '@/providers/auth-provider'
 import { ThemeProvider } from '@/providers/theme-provider'
+import { ElmsStoreProvider } from '@/lib/store/elms-store'
 import { Toaster } from 'sonner'
 import { RELEASE_IDENTIFIER } from '@/lib/constants'
 
@@ -35,10 +36,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <QueryProvider>
-            <AuthProvider>
-              {children}
-              <Toaster position="top-right" richColors closeButton />
-            </AuthProvider>
+            <ElmsStoreProvider>
+              <AuthProvider>
+                {children}
+                <Toaster position="top-right" richColors closeButton />
+              </AuthProvider>
+            </ElmsStoreProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

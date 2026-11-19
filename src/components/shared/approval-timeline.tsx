@@ -110,12 +110,13 @@ export function ApprovalTimeline({ steps, className }: ApprovalTimelineProps) {
                             <AvatarImage src={step.actorAvatar} alt={step.actorName} />
                           )}
                           <AvatarFallback className="text-[10px] font-semibold bg-muted">
-                            {step.actorName
+                            {(step.actorName || "Approver")
                               .split(" ")
+                              .filter(Boolean)
                               .map((n) => n[0])
                               .join("")
                               .slice(0, 2)
-                              .toUpperCase()}
+                              .toUpperCase() || "A"}
                           </AvatarFallback>
                         </Avatar>
                         <p className="text-sm font-semibold text-foreground">

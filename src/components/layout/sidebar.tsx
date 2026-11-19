@@ -72,17 +72,11 @@ export const ROLE_NAVIGATION: Record<Role, NavItem[]> = {
   ],
   HR: [
     { title: "Dashboard", href: "/hr/dashboard", icon: LayoutDashboard },
+    { title: "Approvals", href: "/hr/approvals", icon: CheckSquare, badge: "Pending" },
     { title: "Employees", href: "/hr/employees", icon: Users },
+    { title: "Policies & Calendar", href: "/hr/policies", icon: FileSpreadsheet },
+    { title: "Reports & Ledger", href: "/hr/reports", icon: BarChart3 },
     { title: "Departments", href: "/hr/departments", icon: Building2 },
-    { title: "Leave Requests", href: "/hr/leave-requests", icon: CalendarCheck },
-    { title: "Approval Workflows", href: "/hr/approval-workflows", icon: GitBranch },
-    { title: "Leave Types", href: "/hr/leave-types", icon: FileText },
-    { title: "Leave Policies", href: "/hr/leave-policies", icon: FileSpreadsheet },
-    { title: "Leave Balances", href: "/hr/leave-balances", icon: PieChart },
-    { title: "Holidays", href: "/hr/holidays", icon: CalendarIcon },
-    { title: "Work Schedules", href: "/hr/work-schedules", icon: Clock },
-    { title: "Reports", href: "/hr/reports", icon: BarChart3 },
-    { title: "Audit Logs", href: "/hr/audit-logs", icon: History },
     { title: "Settings", href: "/hr/settings", icon: Settings },
   ],
   ADMIN: [
@@ -271,21 +265,22 @@ export function Sidebar({
               <Avatar className="h-8 w-8 border border-slate-200 dark:border-slate-700 shrink-0">
                 {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
                 <AvatarFallback className="bg-blue-100 text-blue-800 text-xs font-semibold dark:bg-blue-950 dark:text-blue-300">
-                  {user.name
+                  {(user?.name || "User")
                     .split(" ")
+                    .filter(Boolean)
                     .map((n) => n[0])
                     .join("")
                     .slice(0, 2)
-                    .toUpperCase()}
+                    .toUpperCase() || "U"}
                 </AvatarFallback>
               </Avatar>
               {(!isCollapsed || isMobileOpen) && (
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-xs font-semibold text-slate-900 dark:text-slate-100">
-                    {user.name}
+                    {user?.name || "Employee"}
                   </p>
                   <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    {user.role}
+                    {user?.role || "EMPLOYEE"}
                   </span>
                 </div>
               )}

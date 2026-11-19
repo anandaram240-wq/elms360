@@ -2,19 +2,20 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { format, startOfDay } from 'date-fns'
+import { format } from 'date-fns'
 import {
   Calendar,
   Clock,
-  FileText,
   UserCheck,
   CheckCircle2,
+  AlertCircle,
   AlertTriangle,
   ArrowRight,
-  ArrowLeft,
   Loader2,
   ShieldAlert,
-  Sparkles,
+  Send,
+  Building,
+  Check,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -22,7 +23,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -31,129 +31,110 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DatePicker } from '@/components/shared/date-picker'
-import { FileUpload } from '@/components/shared/file-upload'
-import {
-  calculateLeaveDuration,
-  submitLeaveApplication,
-  uploadLeaveAttachment,
-  LeaveCalculationResult,
-} from '@/app/actions/employee/leave-actions'
-import { useLeaveTypes } from '@/hooks/queries/use-employee-queries'
+import { useElmsStore } from '@/lib/store/elms-store'
 import { DayType } from '@/types/app'
 
 export default function ApplyLeavePage() {
   const router = useRouter()
-  const { data: leaveTypes = [], isLoading: loadingTypes } = useLeaveTypes()
+  const { state, currentUser, calculateDuration, submitLeave } = useElmsStore()
 
-  const [step, setStep] = React.useState<1 | 2 | 3 | 4>(1)
-
-  // Step 1 State
+  // Form State
   const [leaveTypeId, setLeaveTypeId] = React.useState<string>('')
   const [startDate, setStartDate] = React.useState<Date | undefined>(undefined)
   const [endDate, setEndDate] = React.useState<Date | undefined>(undefined)
   const [dayType, setDayType] = React.useState<DayType>('FULL_DAY')
   const [reason, setReason] = React.useState<string>('')
-
-  // Step 2 Calculation & Documents
-  const [calculating, setCalculating] = React.useState(false)
-  const [calcResult, setCalcResult] = React.useState<LeaveCalculationResult | null>(null)
-  const [attachedFile, setAttachedFile] = React.useState<File | null>(null)
-
-  // Step 3 Additional Information
   const [handoverNotes, setHandoverNotes] = React.useState<string>('')
   const [emergencyContact, setEmergencyContact] = React.useState<string>('')
-  const [contactDuringLeave, setContactDuringLeave] = React.useState<string>('')
-
-  // Step 4 Confirmation
-  const [confirmed, setConfirmed] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
 
-  // Selected leave type details
-  const selectedType = leaveTypes.find((t) => t.leaveTypeId === leaveTypeId)
+  // Current employee & balances
+  const employeeId = currentUser?.id || currentUser?.employeeId || ''
+  const myBalances = state.leaveBalances.filter(
+    (b) => b.employee_id === employeeId && b.fiscal_year === 2026
+  )
 
-  // Step 1 Validation & Weekend Detection
-  const hasWeekendOnly = React.useMemo(() => {
-    if (!startDate || !endDate) return false
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    let cur = new Date(start)
-    let hasWorkingDay = false
-    while (cur <= end) {
-      const day = cur.getDay() // 0 = Sun, 6 = Sat
-      if (day !== 0 && day !== 6) {
-        hasWorkingDay = true
-        break
-      }
-      cur.setDate(cur.getDate() + 1)
+  // Set default leave type on load
+  React.useEffect(() => {
+    if (!leaveTypeId && state.leaveTypes.length > 0) {
+      setLeaveTypeId(state.leaveTypes[0].id)
     }
-    return !hasWorkingDay
-  }, [startDate, endDate])
+  }, [leaveTypeId, state.leaveTypes])
 
-  const canProceedStep1 =
-    Boolean(leaveTypeId) &&
-    Boolean(startDate) &&
-    Boolean(endDate) &&
-    Boolean(startDate && endDate && endDate >= startDate) &&
-    !hasWeekendOnly &&
-    reason.trim().length >= 20
+  const selectedType = state.leaveTypes.find((t) => t.id === leaveTypeId)
+  const currentBalance = myBalances.find((b) => b.leave_type_id === leaveTypeId)
+  const availableDays = currentBalance ? currentBalance.available_balance : 0
 
-  // Calculate duration when moving to Step 2
-  const handleProceedToStep2 = async () => {
-    if (!startDate || !endDate || !leaveTypeId) return
+  // Format dates for calculation
+  const startDateStr = startDate ? format(startDate, 'yyyy-MM-dd') : ''
+  const endDateStr = endDate ? format(endDate, 'yyyy-MM-dd') : ''
 
-    setCalculating(true)
-    try {
-      const result = await calculateLeaveDuration({
-        startDate: format(startDate, 'yyyy-MM-dd'),
-        endDate: format(endDate, 'yyyy-MM-dd'),
-        dayType,
-        leaveTypeId,
-      })
-      setCalcResult(result)
-      setStep(2)
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to calculate leave duration')
-    } finally {
-      setCalculating(false)
+  // Real-time duration calculation
+  const durationResult = React.useMemo(() => {
+    if (!startDateStr || !endDateStr || endDateStr < startDateStr) {
+      return null
     }
-  }
+    return calculateDuration(startDateStr, endDateStr, dayType)
+  }, [startDateStr, endDateStr, dayType, calculateDuration])
 
-  // Handle final submission
-  const handleSubmit = async () => {
-    if (!confirmed) {
-      toast.error('Please confirm the accuracy of your application.')
-      return
+  const workingDays = durationResult?.workingDays || 0
+  const remainingAfterApproval = Math.max(0, availableDays - workingDays)
+
+  // Overlap check
+  const overlapConflict = React.useMemo(() => {
+    if (!startDateStr || !endDateStr) return null
+    return state.leaveRequests.find((r) => {
+      if (r.employee_id !== employeeId) return false
+      if (r.status === 'REJECTED' || r.status === 'WITHDRAWN' || r.status === 'CANCELLED') return false
+      return !(r.end_date < startDateStr || r.start_date > endDateStr)
+    })
+  }, [state.leaveRequests, employeeId, startDateStr, endDateStr])
+
+  // Validation
+  const validationError = React.useMemo(() => {
+    if (!leaveTypeId) return 'Please choose a leave category.'
+    if (!startDate || !endDate) return 'Please select both start and end dates.'
+    if (endDateStr < startDateStr) return 'End date cannot be earlier than start date.'
+    if (durationResult && durationResult.workingDays <= 0) {
+      return 'The selected dates contain 0 working days (weekends or holidays are automatically exempted).'
     }
+    if (selectedType?.code !== 'LOP' && workingDays > availableDays) {
+      return `Insufficient leave balance (${availableDays} days available, but requested ${workingDays} days).`
+    }
+    if (overlapConflict) {
+      return `Overlaps with existing leave request (${overlapConflict.request_number}: ${overlapConflict.start_date} to ${overlapConflict.end_date}).`
+    }
+    if (reason.trim().length < 3) {
+      return 'Please enter a justification (minimum 3 characters).'
+    }
+    return null
+  }, [leaveTypeId, startDate, endDate, endDateStr, startDateStr, durationResult, selectedType, workingDays, availableDays, overlapConflict, reason])
 
-    if (!startDate || !endDate || !leaveTypeId) return
+  const canSubmit = !validationError && !submitting
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canSubmit || !startDateStr || !endDateStr) return
 
     setSubmitting(true)
     try {
-      const result = await submitLeaveApplication({
+      const res = submitLeave({
         leaveTypeId,
-        startDate: format(startDate, 'yyyy-MM-dd'),
-        endDate: format(endDate, 'yyyy-MM-dd'),
+        startDate: startDateStr,
+        endDate: endDateStr,
         dayType,
         reason: reason.trim(),
         handoverNotes: handoverNotes.trim() || undefined,
         emergencyContact: emergencyContact.trim() || undefined,
-        contactDuringLeave: contactDuringLeave.trim() || undefined,
       })
 
-      if (!result.success || !result.requestId) {
-        toast.error(result.error || 'Failed to submit leave application')
+      if (!res.success || !res.request) {
+        toast.error(res.error || 'Failed to submit leave request')
         setSubmitting(false)
         return
       }
 
-      // If there is an attachment, upload it
-      if (attachedFile) {
-        const formData = new FormData()
-        formData.append('file', attachedFile)
-        await uploadLeaveAttachment(result.requestId, formData)
-      }
-
-      toast.success(result.message || 'Leave request submitted successfully!')
+      toast.success(`Leave request ${res.request.request_number} submitted successfully! Routed to manager for approval.`)
       router.push('/employee/my-leaves')
     } catch (err: any) {
       toast.error(err?.message || 'An error occurred during submission.')
@@ -163,541 +144,296 @@ export default function ApplyLeavePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-16">
-      {/* Page Title */}
+    <div className="max-w-6xl mx-auto space-y-6 pb-16">
+      {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Apply for Leave
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Complete the steps below to submit your leave application for approval.
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Apply for Leave</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Submit your leave application for manager and HR approval. Working days are computed automatically based on your schedule.
         </p>
       </div>
 
-      {/* Stepper Header */}
-      <div className="grid grid-cols-4 gap-2 border-b pb-4">
-        {[
-          { num: 1, title: 'Basic Details', icon: Calendar },
-          { num: 2, title: 'Duration Preview', icon: Clock },
-          { num: 3, title: 'Handover & Contacts', icon: FileText },
-          { num: 4, title: 'Review & Submit', icon: CheckCircle2 },
-        ].map((s) => {
-          const isCurrent = step === s.num
-          const isDone = step > s.num
-          const Icon = s.icon
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column: Clean Single-Page Form (7 cols) */}
+          <div className="lg:col-span-7 space-y-6">
+            <Card className="border-slate-200 shadow-sm bg-white">
+              <CardHeader className="pb-4 border-b border-slate-100">
+                <CardTitle className="text-base font-semibold text-slate-900">1. Leave Category & Schedule</CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Select the applicable leave policy and duration
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-5">
+                {/* Leave Type */}
+                <div className="space-y-2">
+                  <Label htmlFor="leaveType" className="text-xs font-semibold text-slate-700">
+                    Leave Type <span className="text-rose-500">*</span>
+                  </Label>
+                  <Select value={leaveTypeId} onValueChange={setLeaveTypeId}>
+                    <SelectTrigger id="leaveType" className="w-full h-10 border-slate-200">
+                      <SelectValue placeholder="Select leave category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {state.leaveTypes.map((type) => {
+                        const bal = myBalances.find((b) => b.leave_type_id === type.id)
+                        const avail = bal ? bal.available_balance : 0
+                        return (
+                          <SelectItem key={type.id} value={type.id}>
+                            <div className="flex items-center justify-between w-full gap-4">
+                              <span className="font-medium text-slate-800">
+                                {type.name} ({type.code})
+                              </span>
+                              <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                                {avail} days available
+                              </span>
+                            </div>
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          return (
-            <div
-              key={s.num}
-              className={`flex items-center gap-2.5 transition-colors ${
-                isCurrent
-                  ? 'text-primary font-semibold'
-                  : isDone
-                  ? 'text-foreground'
-                  : 'text-muted-foreground'
-              }`}
-            >
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                  isCurrent
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : isDone
-                    ? 'bg-green-600 text-white'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {isDone ? <CheckCircle2 className="h-4 w-4" /> : s.num}
-              </div>
-              <div className="hidden sm:block text-xs">
-                <p className="leading-tight">{s.title}</p>
-                <p className="text-[10px] text-muted-foreground">Step {s.num} of 4</p>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+                {/* Dates */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Start Date <span className="text-rose-500">*</span>
+                    </Label>
+                    <DatePicker
+                      value={startDate}
+                      onChange={(date) => {
+                        setStartDate(date)
+                        if (!endDate || (date && endDate < date)) {
+                          setEndDate(date)
+                        }
+                      }}
+                      placeholder="Select start date"
+                    />
+                  </div>
 
-      {/* STEP 1: Basic Details */}
-      {step === 1 && (
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Step 1: Leave Details</CardTitle>
-            <CardDescription>
-              Select leave category, date range, day schedule, and enter your justification.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Quick Test Preset Buttons */}
-            <div className="rounded-xl border border-blue-200 bg-blue-50/80 dark:bg-blue-950/40 p-4 space-y-2.5">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <span className="text-xs font-semibold text-blue-900 dark:text-blue-200 uppercase tracking-wide">
-                  Quick Fill Test Presets (Guaranteed Working Days)
-                </span>
-              </div>
-              <p className="text-xs text-blue-800/80 dark:text-blue-300">
-                Click below to instantly populate valid weekday test dates and policy-compliant descriptions:
-              </p>
-              <div className="flex flex-wrap gap-2 pt-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const cl = leaveTypes.find((t) => t.leaveTypeCode === 'CL') || leaveTypes[0]
-                    if (cl) setLeaveTypeId(cl.leaveTypeId)
-                    setStartDate(new Date(2026, 10, 24)) // 24 Nov 2026 (Tuesday)
-                    setEndDate(new Date(2026, 10, 25))   // 25 Nov 2026 (Wednesday)
-                    setDayType('FULL_DAY')
-                    setReason('Attending family wedding ceremony and scheduled personal commitments.')
-                  }}
-                  className="bg-white hover:bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:hover:bg-blue-900 text-xs font-medium border-blue-200"
-                >
-                  ⚡ 24–25 Nov 2026 (Tue–Wed • 2 Days CL)
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const pl = leaveTypes.find((t) => t.leaveTypeCode === 'PL') || leaveTypes[0]
-                    if (pl) setLeaveTypeId(pl.leaveTypeId)
-                    setStartDate(new Date(2026, 11, 1)) // 1 Dec 2026 (Tuesday)
-                    setEndDate(new Date(2026, 11, 2))   // 2 Dec 2026 (Wednesday)
-                    setDayType('FULL_DAY')
-                    setReason('Annual family vacation and scheduled travel out of town.')
-                  }}
-                  className="bg-white hover:bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:hover:bg-blue-900 text-xs font-medium border-blue-200"
-                >
-                  ⚡ 1–2 Dec 2026 (Tue–Wed • 2 Days PL)
-                </Button>
-              </div>
-            </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      End Date <span className="text-rose-500">*</span>
+                    </Label>
+                    <DatePicker
+                      value={endDate}
+                      onChange={setEndDate}
+                      minDate={startDate}
+                      placeholder="Select end date"
+                    />
+                  </div>
+                </div>
 
-            {/* Leave Type Select */}
-            <div className="space-y-2">
-              <Label htmlFor="leaveType">Leave Type <span className="text-destructive">*</span></Label>
-              <Select value={leaveTypeId} onValueChange={setLeaveTypeId}>
-                <SelectTrigger id="leaveType" className="w-full">
-                  <SelectValue placeholder={loadingTypes ? 'Loading leave types...' : 'Select leave category'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {leaveTypes.map((type) => (
-                    <SelectItem key={type.leaveTypeId} value={type.leaveTypeId}>
-                      <div className="flex items-center justify-between w-full gap-4">
-                        <span className="font-medium">{type.leaveTypeName} ({type.leaveTypeCode})</span>
-                        <span className="text-xs text-muted-foreground">
-                          Available: {type.availableBalance} days
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedType && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
-                  <span
-                    className="h-2 w-2 rounded-full inline-block"
-                    style={{ backgroundColor: selectedType.color }}
+                {/* Day Schedule Toggle */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-slate-700">Day Schedule</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'FULL_DAY', label: 'Full Day' },
+                      { id: 'HALF_DAY_AM', label: 'Half Day (Morning)' },
+                      { id: 'HALF_DAY_PM', label: 'Half Day (Afternoon)' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setDayType(item.id as DayType)}
+                        className={`py-2 px-3 text-xs font-medium rounded-lg border transition-all text-center ${
+                          dayType === item.id
+                            ? 'bg-blue-50 border-blue-600 text-blue-700 font-semibold shadow-xs'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 shadow-sm bg-white">
+              <CardHeader className="pb-4 border-b border-slate-100">
+                <CardTitle className="text-base font-semibold text-slate-900">2. Justification & Handover</CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Provide reason and optional team contact coverage
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-5">
+                {/* Reason */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="reason" className="text-xs font-semibold text-slate-700">
+                      Reason for Leave <span className="text-rose-500">*</span>
+                    </Label>
+                    <span className="text-[11px] text-slate-400">Min 3 characters</span>
+                  </div>
+                  <Textarea
+                    id="reason"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Briefly describe the reason for your leave request..."
+                    rows={3}
+                    className="border-slate-200 text-sm resize-none"
                   />
-                  <span>
-                    Current available balance: <strong>{selectedType.availableBalance} days</strong> (Used: {selectedType.used} d, Pending: {selectedType.pending} d)
+                </div>
+
+                {/* Optional Handover & Emergency Contact */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="handover" className="text-xs font-semibold text-slate-700">
+                      Work Handover Note (Optional)
+                    </Label>
+                    <Input
+                      id="handover"
+                      value={handoverNotes}
+                      onChange={(e) => setHandoverNotes(e.target.value)}
+                      placeholder="e.g. Rahul covering sprint tasks"
+                      className="border-slate-200 text-sm h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="emergency" className="text-xs font-semibold text-slate-700">
+                      Emergency Phone / Contact (Optional)
+                    </Label>
+                    <Input
+                      id="emergency"
+                      value={emergencyContact}
+                      onChange={(e) => setEmergencyContact(e.target.value)}
+                      placeholder="e.g. +91 98765 43210"
+                      className="border-slate-200 text-sm h-10"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column: Live Calculation & Summary Card (5 cols) */}
+          <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-20">
+            <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
+              <div className="bg-slate-900 text-white p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs uppercase tracking-wider text-slate-300 font-semibold">
+                    Live Calculation Preview
+                  </span>
+                  <span className="text-xs bg-slate-800 text-blue-300 px-2 py-0.5 rounded font-mono">
+                    {dayType.replace(/_/g, ' ')}
                   </span>
                 </div>
-              )}
-            </div>
-
-            {/* Date Pickers */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Start Date <span className="text-destructive">*</span></Label>
-                <DatePicker
-                  value={startDate}
-                  onChange={(date) => {
-                    setStartDate(date)
-                    if (!endDate || (date && endDate < date)) {
-                      setEndDate(date)
-                    }
-                  }}
-                  placeholder="Select start date"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>End Date <span className="text-destructive">*</span></Label>
-                <DatePicker
-                  value={endDate}
-                  onChange={setEndDate}
-                  minDate={startDate}
-                  placeholder="Select end date"
-                />
-              </div>
-            </div>
-
-            {/* Live Date Schedule Breakdown & Weekend Warning */}
-            {startDate && endDate && hasWeekendOnly && (
-              <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-4 space-y-1.5 text-amber-900 dark:text-amber-200">
-                <div className="flex items-center gap-2 font-semibold text-sm text-amber-800 dark:text-amber-300">
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  <span>0 Working Days Selected (Weekly Off / Weekend)</span>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-4xl font-extrabold tabular-nums tracking-tight text-white">
+                    {workingDays}
+                  </span>
+                  <span className="text-slate-300 font-medium text-sm">Working Day(s)</span>
                 </div>
-                <p className="text-xs leading-relaxed">
-                  The selected date range (<strong>{format(startDate, 'EEE dd MMM yyyy')}</strong> {endDate > startDate ? `to ${format(endDate, 'EEE dd MMM yyyy')}` : ''}) consists solely of weekends (Saturday / Sunday).
-                  Company policy automatically exempts weekends so 0 days can be deducted. Please select weekdays (Monday–Friday) or use one of the Quick Fill presets above.
-                </p>
+                {durationResult && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    {durationResult.totalCalendarDays} total calendar days ({durationResult.skippedWeekends} weekends, {durationResult.skippedHolidays} holidays exempted)
+                  </p>
+                )}
               </div>
-            )}
 
-            {startDate && endDate && !hasWeekendOnly && (
-              <div className="flex items-center gap-2 p-3 rounded-lg border border-green-200 bg-green-50/70 dark:bg-green-950/30 text-xs text-green-900 dark:text-green-300">
-                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
-                <span>
-                  Valid schedule: <strong>{format(startDate, 'EEEE, dd MMM yyyy')}</strong> {endDate > startDate ? `to ${format(endDate, 'EEEE, dd MMM yyyy')}` : ''} (Includes working weekdays).
-                </span>
-              </div>
-            )}
-
-            {/* Day Type Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="dayType">Day Schedule</Label>
-              <Select value={dayType} onValueChange={(val) => setDayType(val as DayType)}>
-                <SelectTrigger id="dayType">
-                  <SelectValue placeholder="Schedule" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FULL_DAY">Full Day</SelectItem>
-                  <SelectItem value="HALF_DAY_AM">Half Day - Morning (First Half)</SelectItem>
-                  <SelectItem value="HALF_DAY_PM">Half Day - Afternoon (Second Half)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Reason Textarea */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="reason">
-                  Reason for Leave <span className="text-destructive">*</span>
-                </Label>
-                <span className={`text-xs ${reason.trim().length < 20 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                  {reason.trim().length}/20 min chars
-                </span>
-              </div>
-              <Textarea
-                id="reason"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Please explain the reason for your leave application in detail (min 20 characters)..."
-                rows={4}
-              />
-              {reason.trim().length > 0 && reason.trim().length < 20 && (
-                <p className="text-xs text-destructive">
-                  Please enter at least {20 - reason.trim().length} more characters.
-                </p>
-              )}
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between border-t pt-4">
-            <Button variant="outline" onClick={() => router.push('/employee/my-leaves')}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleProceedToStep2}
-              disabled={!canProceedStep1 || calculating}
-              className="gap-2"
-            >
-              {calculating && <Loader2 className="h-4 w-4 animate-spin" />}
-              Continue to Duration Preview
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
-
-      {/* STEP 2: Duration Preview & Document Upload */}
-      {step === 2 && calcResult && (
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Step 2: Duration Preview & Policy Check</CardTitle>
-            <CardDescription>
-              Review calculated working days, policy compliance, and attach supporting medical or travel documents if needed.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Duration Summary Banner */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-muted/40 border">
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Working Days</p>
-                <p className="text-2xl font-bold text-primary">{calcResult.workingDays} d</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Skipped Weekends</p>
-                <p className="text-lg font-semibold text-foreground">{calcResult.weekends} d</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Skipped Holidays</p>
-                <p className="text-lg font-semibold text-foreground">{calcResult.holidays} d</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Remaining Balance</p>
-                <p className={`text-lg font-semibold ${calcResult.remainingBalance < 0 ? 'text-destructive' : 'text-green-600'}`}>
-                  {calcResult.remainingBalance} d
-                </p>
-              </div>
-            </div>
-
-            {/* Policy Warnings Alert */}
-            {calcResult.workingDays <= 0 && (
-              <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-4 space-y-1.5 text-amber-900 dark:text-amber-200">
-                <div className="flex items-center gap-2 font-semibold text-sm text-amber-800 dark:text-amber-300">
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  <span>0 Working Days Selected (Weekly Off / Weekend)</span>
-                </div>
-                <p className="text-xs leading-relaxed">
-                  The selected date range falls entirely on non-working days (weekends or company holidays). Company policy automatically exempts non-working days so no leave balance is deducted. Please click <strong>Back</strong> and select working weekdays (e.g. Monday–Friday) to submit your leave request.
-                </p>
-              </div>
-            )}
-
-            {calcResult.policyWarnings.length > 0 && (
-              <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-4 space-y-2">
-                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-semibold text-sm">
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  <span>Policy Compliance Notices</span>
-                </div>
-                <ul className="list-disc list-inside text-xs text-amber-900 dark:text-amber-200 space-y-1">
-                  {calcResult.policyWarnings.map((warn, i) => (
-                    <li key={i}>{warn}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Approval Route */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Approval Route</Label>
-              <div className="flex flex-wrap items-center gap-2 p-3 bg-card border rounded-lg">
-                {calcResult.approvalRoute.map((stepName, i) => (
-                  <React.Fragment key={i}>
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-foreground bg-muted px-2.5 py-1 rounded-md">
-                      <UserCheck className="h-3.5 w-3.5 text-primary" />
-                      <span>{stepName}</span>
+              <CardContent className="p-6 space-y-6">
+                {/* Balance Impact */}
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Balance Impact</p>
+                  <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                    <div>
+                      <p className="text-[11px] text-slate-500 font-medium">Current Available</p>
+                      <p className="text-lg font-bold text-slate-800 tabular-nums">{availableDays} d</p>
                     </div>
-                    {i < calcResult.approvalRoute.length - 1 && (
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-
-            {/* Supporting Document Upload */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">
-                Supporting Document (Optional)
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Required for sick leave exceeding 2 consecutive days, or maternity / bereavement leaves.
-              </p>
-              <FileUpload
-                value={attachedFile}
-                onChange={setAttachedFile}
-                accept="image/png,image/jpeg,application/pdf"
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between border-t pt-4">
-            <Button variant="outline" onClick={() => setStep(1)} className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-            <Button
-              onClick={() => setStep(3)}
-              disabled={calcResult.workingDays <= 0}
-              className="gap-2"
-            >
-              Continue to Additional Info
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
-
-      {/* STEP 3: Additional Information */}
-      {step === 3 && (
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Step 3: Handover & Emergency Contact</CardTitle>
-            <CardDescription>
-              Help your teammates manage responsibilities while you are away.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="handover">Work Handover Notes</Label>
-              <Textarea
-                id="handover"
-                value={handoverNotes}
-                onChange={(e) => setHandoverNotes(e.target.value)}
-                placeholder="Mention tasks assigned, pending deadlines, or who will cover for you during this leave period..."
-                rows={4}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="emergency">Emergency Contact (Phone / Name)</Label>
-                <Input
-                  id="emergency"
-                  value={emergencyContact}
-                  onChange={(e) => setEmergencyContact(e.target.value)}
-                  placeholder="e.g. Spouse (+91 9876543210)"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="contactDuring">Contact During Leave (Optional)</Label>
-                <Input
-                  id="contactDuring"
-                  value={contactDuringLeave}
-                  onChange={(e) => setContactDuringLeave(e.target.value)}
-                  placeholder="e.g. Email available intermittently"
-                />
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between border-t pt-4">
-            <Button variant="outline" onClick={() => setStep(2)} className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-            <Button onClick={() => setStep(4)} className="gap-2">
-              Review Application
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
-
-      {/* STEP 4: Review & Submit */}
-      {step === 4 && calcResult && selectedType && (
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Step 4: Final Review & Confirmation</CardTitle>
-            <CardDescription>
-              Please verify all leave information carefully before submitting for manager approval.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border p-4 bg-muted/20 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground">Leave Category</p>
-                <p className="font-semibold text-foreground flex items-center gap-2 mt-0.5">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: selectedType.color }}
-                  />
-                  {selectedType.leaveTypeName} ({selectedType.leaveTypeCode})
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground">Duration & Schedule</p>
-                <p className="font-semibold text-foreground mt-0.5">
-                  {calcResult.workingDays} working day(s) ({dayType.replace(/_/g, ' ')})
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground">Dates</p>
-                <p className="font-semibold text-foreground mt-0.5">
-                  {startDate && format(startDate, 'dd MMM yyyy')} —{' '}
-                  {endDate && format(endDate, 'dd MMM yyyy')}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground">Balance Impact</p>
-                <p className="font-semibold text-foreground mt-0.5">
-                  {calcResult.currentBalance} d → {calcResult.remainingBalance} d
-                </p>
-              </div>
-
-              <div className="sm:col-span-2">
-                <p className="text-xs text-muted-foreground">Reason</p>
-                <p className="text-foreground mt-0.5 bg-background p-2.5 rounded border">
-                  {reason}
-                </p>
-              </div>
-
-              {handoverNotes && (
-                <div className="sm:col-span-2">
-                  <p className="text-xs text-muted-foreground">Handover Notes</p>
-                  <p className="text-foreground mt-0.5 bg-background p-2.5 rounded border">
-                    {handoverNotes}
-                  </p>
+                    <div>
+                      <p className="text-[11px] text-slate-500 font-medium">After Approval</p>
+                      <p className={`text-lg font-bold tabular-nums ${workingDays > availableDays ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {remainingAfterApproval} d
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              )}
 
-              {attachedFile && (
-                <div className="sm:col-span-2">
-                  <p className="text-xs text-muted-foreground">Attached Document</p>
-                  <p className="text-foreground font-medium mt-0.5">
-                    📎 {attachedFile.name} ({(attachedFile.size / 1024).toFixed(1)} KB)
-                  </p>
+                {/* Day-by-Day Breakdown */}
+                {durationResult && durationResult.breakdown.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Calendar Schedule</p>
+                    <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                      {durationResult.breakdown.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className={`flex items-center justify-between py-1.5 px-2.5 rounded-md ${
+                            item.isWorkingDay ? 'bg-blue-50/60 text-blue-900' : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          <span className="font-medium font-mono text-[11px]">{item.date}</span>
+                          <span className="text-[11px]">
+                            {item.isWorkingDay ? (
+                              <span className="text-emerald-700 font-semibold">Working Day</span>
+                            ) : (
+                              <span className="text-slate-500 italic">{item.reason || 'Off'}</span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Approval Route */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Approval Chain</p>
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/60 flex items-center justify-between text-xs font-medium text-slate-700">
+                    <div className="flex items-center gap-1.5">
+                      <UserCheck className="h-4 w-4 text-blue-600" />
+                      <span>Reporting Manager</span>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
+                    <div className="flex items-center gap-1.5">
+                      <Building className="h-4 w-4 text-blue-600" />
+                      <span>HR Department</span>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            {calcResult && calcResult.workingDays <= 0 && (
-              <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-4 space-y-1.5 text-amber-900 dark:text-amber-200">
-                <div className="flex items-center gap-2 font-semibold text-sm text-amber-800 dark:text-amber-300">
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  <span>Cannot Submit: 0 Working Days Selected</span>
-                </div>
-                <p className="text-xs leading-relaxed">
-                  The selected dates ({startDate && format(startDate, 'dd MMM yyyy')}) fall on a scheduled weekly off (weekend). You cannot submit a leave application for 0 working days. Please click <strong>Back</strong> and select working days (Monday–Friday).
-                </p>
-              </div>
-            )}
+                {/* Validation Notice Banner */}
+                {validationError && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 flex items-start gap-2.5 text-xs text-amber-900">
+                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="leading-relaxed">{validationError}</p>
+                  </div>
+                )}
 
-            {/* Confirmation Checkbox */}
-            <div className="flex items-start gap-3 p-4 rounded-xl border bg-card">
-              <Checkbox
-                id="confirmCheckbox"
-                checked={confirmed}
-                onCheckedChange={(checked) => setConfirmed(checked === true)}
-              />
-              <div className="grid gap-1.5 leading-none">
-                <label
-                  htmlFor="confirmCheckbox"
-                  className="text-sm font-medium leading-none cursor-pointer"
+                {!validationError && startDate && endDate && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 flex items-center gap-2.5 text-xs text-emerald-900 font-medium">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Application is ready for submission.</span>
+                  </div>
+                )}
+
+                {/* Submit Action */}
+                <Button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition-all gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  I confirm that all entered information is accurate and complies with company leave policies.
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  Submitting will notify your manager and reserve your leave balance.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between border-t pt-4">
-            <Button variant="outline" onClick={() => setStep(3)} className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={!confirmed || submitting || !calcResult || calcResult.workingDays <= 0}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {calcResult && calcResult.workingDays <= 0
-                ? 'Cannot Submit (0 Working Days)'
-                : 'Submit Leave Application'}
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Submitting Application...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Submit Leave Application
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </form>
     </div>
   )
 }

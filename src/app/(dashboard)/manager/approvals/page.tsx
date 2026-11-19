@@ -2,21 +2,25 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import type { LeaveRequestWithDetails } from '@/types/app'
 import {
-  getMyPendingApprovals,
-  processApprovalAction,
-  bulkApproveRequests,
-} from '@/app/actions/manager/approval-actions'
-import { useManagerRealtime } from '@/hooks/use-manager-realtime'
-import { useAuth } from '@/providers/auth-provider'
-import { PageHeader } from '@/components/shared/page-header'
-import { LeaveStatusBadge } from '@/components/shared/status-badge'
+  Check,
+  X,
+  HelpCircle,
+  Eye,
+  Search,
+  Filter,
+  AlertTriangle,
+  FileText,
+  User,
+  Clock,
+  CheckCircle2,
+  Calendar,
+  Building,
+} from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
@@ -27,14 +31,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -43,626 +39,499 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Check,
-  X,
-  HelpCircle,
-  Eye,
-  Search,
-  Filter,
-  CheckCheck,
-  RefreshCw,
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  User,
-} from 'lucide-react'
-import { toast } from 'sonner'
+import { useElmsStore, LeaveRequestRecord } from '@/lib/store/elms-store'
 
-export default function ApprovalsQueuePage() {
-  const router = useRouter()
-  const { currentUser } = useAuth()
+export default function ManagerApprovalsPage() {
+  const { state, currentUser, managerApprove, managerReject, managerRequestClarification } = useElmsStore()
 
-  // State
-  const [requests, setRequests] = React.useState<LeaveRequestWithDetails[]>([])
-  const [total, setTotal] = React.useState<number>(0)
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [page, setPage] = React.useState(1)
-  const [pageSize] = React.useState(15)
-
-  // Filters
+  const [activeTab, setActiveTab] = React.useState<'PENDING' | 'HISTORY'>('PENDING')
   const [search, setSearch] = React.useState('')
-  const [statusFilter, setStatusFilter] = React.useState<'PENDING' | 'ALL'>('PENDING')
-  const [leaveTypeFilter, setLeaveTypeFilter] = React.useState<string>('ALL')
+  const [departmentFilter, setDepartmentFilter] = React.useState('ALL')
 
-  // Selection for bulk action
-  const [selectedIds, setSelectedIds] = React.useState<string[]>([])
+  // Modals state
+  const [selectedRequest, setSelectedRequest] = React.useState<LeaveRequestRecord | null>(null)
+  const [rejectTargetId, setRejectTargetId] = React.useState<string | null>(null)
+  const [rejectReason, setRejectReason] = React.useState('')
+  const [clarifyTargetId, setClarifyTargetId] = React.useState<string | null>(null)
+  const [clarifyQuestion, setClarifyQuestion] = React.useState('')
+  const [approveComments, setApproveComments] = React.useState('')
+  const [approveTargetId, setApproveTargetId] = React.useState<string | null>(null)
 
-  // Modal Dialog states
-  const [activeModal, setActiveModal] = React.useState<
-    'APPROVE' | 'REJECT' | 'CLARIFY' | 'BULK_APPROVE' | null
-  >(null)
-  const [targetRequest, setTargetRequest] = React.useState<LeaveRequestWithDetails | null>(null)
-  const [modalComment, setModalComment] = React.useState('')
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  // Manager's viewable requests
+  const pendingRequests = state.leaveRequests.filter(
+    (r) => r.status === 'PENDING_MANAGER_APPROVAL'
+  )
 
-  // Data fetching
-  const fetchApprovals = React.useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const res = await getMyPendingApprovals({
-        search,
-        status: statusFilter,
-        leaveTypeId: leaveTypeFilter,
-        page,
-        pageSize,
-      })
-      setRequests(res.requests)
-      setTotal(res.total)
-    } catch (err) {
-      console.error('Failed to load approvals:', err)
-      toast.error('Failed to load approval requests')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [search, statusFilter, leaveTypeFilter, page, pageSize])
+  const historyRequests = state.leaveRequests.filter(
+    (r) => r.status !== 'PENDING_MANAGER_APPROVAL' && r.status !== 'DRAFT'
+  )
 
-  // Initial load and updates
-  React.useEffect(() => {
-    fetchApprovals()
-  }, [fetchApprovals])
+  const displayList = activeTab === 'PENDING' ? pendingRequests : historyRequests
 
-  // Real-time subscription hook
-  useManagerRealtime({
-    employeeId: currentUser?.employeeId,
-    onNewRequest: () => {
-      fetchApprovals()
-    },
-  })
-
-  // Selection handlers
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(requests.map((r) => r.id))
-    } else {
-      setSelectedIds([])
-    }
-  }
-
-  const handleSelectOne = (id: string, checked: boolean) => {
-    if (checked) {
-      setSelectedIds((prev) => [...prev, id])
-    } else {
-      setSelectedIds((prev) => prev.filter((i) => i !== id))
-    }
-  }
-
-  // Action open handlers
-  const handleOpenApprove = (req: LeaveRequestWithDetails) => {
-    setTargetRequest(req)
-    setActiveModal('APPROVE')
-    setModalComment('')
-  }
-
-  const handleOpenReject = (req: LeaveRequestWithDetails) => {
-    setTargetRequest(req)
-    setActiveModal('REJECT')
-    setModalComment('')
-  }
-
-  const handleOpenClarify = (req: LeaveRequestWithDetails) => {
-    setTargetRequest(req)
-    setActiveModal('CLARIFY')
-    setModalComment('')
-  }
-
-  const handleOpenBulkApprove = () => {
-    if (selectedIds.length === 0) return
-    setActiveModal('BULK_APPROVE')
-    setModalComment('')
-  }
-
-  // Action execution
-  const handleConfirmAction = async () => {
-    if (!activeModal) return
-    setIsSubmitting(true)
-
-    try {
-      if (activeModal === 'APPROVE' && targetRequest) {
-        const idempotencyKey = `appr_${targetRequest.id}_${Date.now()}`
-        const res = await processApprovalAction({
-          requestId: targetRequest.id,
-          action: 'APPROVE',
-          comments: modalComment.trim() || undefined,
-          idempotencyKey,
-        })
-        if (res.success) {
-          toast.success(`Request #${targetRequest.requestNumber} approved`)
-          setActiveModal(null)
-          fetchApprovals()
-        } else {
-          toast.error(res.error || 'Approval failed')
-        }
-      } else if (activeModal === 'REJECT' && targetRequest) {
-        if (!modalComment.trim()) {
-          toast.error('Rejection reason is required')
-          setIsSubmitting(false)
-          return
-        }
-        const idempotencyKey = `rej_${targetRequest.id}_${Date.now()}`
-        const res = await processApprovalAction({
-          requestId: targetRequest.id,
-          action: 'REJECT',
-          reason: modalComment.trim(),
-          idempotencyKey,
-        })
-        if (res.success) {
-          toast.success(`Request #${targetRequest.requestNumber} rejected`)
-          setActiveModal(null)
-          fetchApprovals()
-        } else {
-          toast.error(res.error || 'Rejection failed')
-        }
-      } else if (activeModal === 'CLARIFY' && targetRequest) {
-        if (!modalComment.trim()) {
-          toast.error('Please enter a clarification question or request')
-          setIsSubmitting(false)
-          return
-        }
-        const idempotencyKey = `clar_${targetRequest.id}_${Date.now()}`
-        const res = await processApprovalAction({
-          requestId: targetRequest.id,
-          action: 'REQUEST_CLARIFICATION',
-          message: modalComment.trim(),
-          idempotencyKey,
-        })
-        if (res.success) {
-          toast.success(`Clarification requested on #${targetRequest.requestNumber}`)
-          setActiveModal(null)
-          fetchApprovals()
-        } else {
-          toast.error(res.error || 'Action failed')
-        }
-      } else if (activeModal === 'BULK_APPROVE') {
-        const res = await bulkApproveRequests({
-          requestIds: selectedIds,
-          comments: modalComment.trim() || undefined,
-        })
-        if (res.approvedCount > 0) {
-          toast.success(`Successfully approved ${res.approvedCount} requests`)
-        }
-        if (res.errors.length > 0) {
-          toast.error(`Errors encountered: ${res.errors.join(', ')}`)
-        }
-        setSelectedIds([])
-        setActiveModal(null)
-        fetchApprovals()
+  const filteredData = React.useMemo(() => {
+    return displayList.filter((r) => {
+      if (departmentFilter !== 'ALL' && r.department_name !== departmentFilter) return false
+      if (search.trim()) {
+        const q = search.toLowerCase()
+        const match =
+          r.request_number.toLowerCase().includes(q) ||
+          r.employee_name.toLowerCase().includes(q) ||
+          r.leave_type_name.toLowerCase().includes(q) ||
+          r.reason.toLowerCase().includes(q)
+        if (!match) return false
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Action encountered an error'
-      toast.error(msg)
-    } finally {
-      setIsSubmitting(false)
+      return true
+    })
+  }, [displayList, departmentFilter, search])
+
+  // Team overlap checker
+  const getOverlappingTeammates = (req: LeaveRequestRecord) => {
+    return state.leaveRequests.filter((other) => {
+      if (other.id === req.id) return false
+      if (other.department_name !== req.department_name) return false
+      if (other.status !== 'APPROVED' && other.status !== 'PENDING_HR_APPROVAL' && other.status !== 'PENDING_MANAGER_APPROVAL') return false
+      return !(other.end_date < req.start_date || other.start_date > req.end_date)
+    })
+  }
+
+  // Handle Approve
+  const handleConfirmApprove = () => {
+    if (!approveTargetId) return
+    const res = managerApprove(approveTargetId, approveComments.trim() || undefined)
+    if (res.success) {
+      toast.success('Leave request approved and forwarded to HR Department for final sign-off.')
+      setApproveTargetId(null)
+      setApproveComments('')
+    } else {
+      toast.error(res.error || 'Failed to approve request')
     }
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const selectedRequests = requests.filter((r) => selectedIds.includes(r.id))
+  // Handle Reject
+  const handleConfirmReject = () => {
+    if (!rejectTargetId) return
+    if (rejectReason.trim().length < 3) {
+      toast.error('Please specify a rejection reason (minimum 3 characters)')
+      return
+    }
+    const res = managerReject(rejectTargetId, rejectReason.trim())
+    if (res.success) {
+      toast.success('Leave request rejected. Balance reservation released.')
+      setRejectTargetId(null)
+      setRejectReason('')
+    } else {
+      toast.error(res.error || 'Failed to reject request')
+    }
+  }
+
+  // Handle Clarification
+  const handleConfirmClarify = () => {
+    if (!clarifyTargetId) return
+    if (clarifyQuestion.trim().length < 3) {
+      toast.error('Please enter the question for the employee (minimum 3 characters)')
+      return
+    }
+    const res = managerRequestClarification(clarifyTargetId, clarifyQuestion.trim())
+    if (res.success) {
+      toast.success('Clarification requested. Employee has been notified.')
+      setClarifyTargetId(null)
+      setClarifyQuestion('')
+    } else {
+      toast.error(res.error || 'Failed to request clarification')
+    }
+  }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Approval Queue"
-        description="Review, approve, or reject leave requests submitted by your team."
-      >
-        <div className="flex items-center gap-2">
-          {selectedIds.length > 0 && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleOpenBulkApprove}
-              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-            >
-              <CheckCheck className="h-4 w-4" />
-              Bulk Approve ({selectedIds.length})
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchApprovals()}
-            disabled={isLoading}
-            className="gap-1.5"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+    <div className="space-y-6 pb-16">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Manager Approval Center</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Review team leave applications, check schedule overlap conflicts, and approve or reject requests.
+          </p>
         </div>
-      </PageHeader>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs font-semibold py-1 px-3 border-amber-200 bg-amber-50 text-amber-800">
+            {pendingRequests.length} Pending Actions
+          </Badge>
+        </div>
+      </div>
 
-      {/* Filter Bar */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
-            {/* Search Box */}
-            <div className="relative w-full md:w-80">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search employee, request #..."
-                className="pl-8 text-sm"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value)
-                  setPage(1)
-                }}
-              />
-            </div>
-
-            {/* Filter controls */}
-            <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-              {/* Status Toggle */}
-              <div className="flex items-center rounded-lg border bg-muted/40 p-1">
-                <Button
-                  size="sm"
-                  variant={statusFilter === 'PENDING' ? 'default' : 'ghost'}
-                  className="text-xs h-7 px-3"
-                  onClick={() => {
-                    setStatusFilter('PENDING')
-                    setPage(1)
-                  }}
-                >
-                  Pending Review
-                </Button>
-                <Button
-                  size="sm"
-                  variant={statusFilter === 'ALL' ? 'default' : 'ghost'}
-                  className="text-xs h-7 px-3"
-                  onClick={() => {
-                    setStatusFilter('ALL')
-                    setPage(1)
-                  }}
-                >
-                  All Requests
-                </Button>
-              </div>
-
-              {/* Leave Type Select */}
-              <Select
-                value={leaveTypeFilter}
-                onValueChange={(val) => {
-                  setLeaveTypeFilter(val)
-                  setPage(1)
-                }}
-              >
-                <SelectTrigger className="w-36 h-9 text-xs">
-                  <SelectValue placeholder="Leave Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Types</SelectItem>
-                  <SelectItem value="PL">Privilege Leave</SelectItem>
-                  <SelectItem value="SL">Sick Leave</SelectItem>
-                  <SelectItem value="CL">Casual Leave</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Tabs & Filters */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab('PENDING')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === 'PENDING'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Pending Review ({pendingRequests.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('HISTORY')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === 'HISTORY'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Approval History ({historyRequests.length})
+            </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Requests Table */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={
-                        requests.length > 0 && selectedIds.length === requests.length
-                      }
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Leave Type</TableHead>
-                  <TableHead>Dates</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <RefreshCw className="h-6 w-6 animate-spin text-primary" />
-                        <span className="text-sm">Loading approval requests...</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : requests.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <Check className="h-8 w-8 text-emerald-500/80" />
-                        <span className="font-medium text-foreground">No requests found</span>
-                        <span className="text-xs">
-                          {statusFilter === 'PENDING'
-                            ? 'All pending requests have been reviewed!'
-                            : 'No leave requests match your criteria.'}
-                        </span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  requests.map((req) => {
-                    const isSelected = selectedIds.includes(req.id)
-                    const isPending =
-                      req.status === 'PENDING_MANAGER_APPROVAL' ||
-                      req.status === 'PENDING_HR_APPROVAL' ||
-                      req.status === 'PENDING_ADDITIONAL_APPROVAL' ||
-                      req.status === 'CLARIFICATION_REQUESTED'
+        {/* Search & Department Filter */}
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by employee name, request #, or leave category..."
+              className="pl-9 h-9 border-slate-200 text-xs"
+            />
+          </div>
+          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+            <SelectTrigger className="w-full sm:w-48 h-9 border-slate-200 text-xs">
+              <SelectValue placeholder="All Departments" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Departments</SelectItem>
+              <SelectItem value="Engineering">Engineering</SelectItem>
+              <SelectItem value="Human Resources">Human Resources</SelectItem>
+              <SelectItem value="Finance">Finance</SelectItem>
+              <SelectItem value="Marketing">Marketing</SelectItem>
+              <SelectItem value="Operations">Operations</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-                    return (
-                      <TableRow key={req.id} className={isSelected ? 'bg-primary/5' : undefined}>
-                        <TableCell>
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) =>
-                              handleSelectOne(req.id, Boolean(checked))
-                            }
-                            disabled={!isPending}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-0.5">
-                            <p className="font-semibold text-sm text-foreground flex items-center gap-1.5">
-                              {req.employeeName}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {req.employeeCode} {req.departmentName ? `• ${req.departmentName}` : ''}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            style={{
-                              backgroundColor: `${req.leaveTypeColor}15`,
-                              color: req.leaveTypeColor,
-                              borderColor: `${req.leaveTypeColor}35`,
-                            }}
-                            className="text-xs font-semibold border"
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+              <tr>
+                <th className="py-3 px-4">Employee</th>
+                <th className="py-3 px-4">Request #</th>
+                <th className="py-3 px-4">Category</th>
+                <th className="py-3 px-4">Dates</th>
+                <th className="py-3 px-4">Days</th>
+                <th className="py-3 px-4">Team Conflict</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-700">
+              {filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-12 text-slate-400">
+                    <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-emerald-400" />
+                    <p className="font-medium text-slate-700">
+                      {activeTab === 'PENDING' ? 'No pending approval requests!' : 'No historical records found.'}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {activeTab === 'PENDING' ? 'All team leave applications have been reviewed.' : 'Past decisions will be listed here.'}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((req) => {
+                  const overlaps = getOverlappingTeammates(req)
+                  const isSelf = currentUser && (req.employee_id === currentUser.id || req.employee_id === currentUser.employeeId)
+
+                  return (
+                    <tr key={req.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 px-4 font-medium text-slate-900">
+                        <div>
+                          <p className="font-semibold text-slate-900">{req.employee_name}</p>
+                          <p className="text-[10px] text-slate-400">{req.department_name}</p>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono font-semibold text-blue-600">
+                        <button
+                          onClick={() => setSelectedRequest(req)}
+                          className="hover:underline text-left cursor-pointer"
+                        >
+                          {req.request_number}
+                        </button>
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-slate-800">
+                        {req.leave_type_name}
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-slate-700 whitespace-nowrap">
+                        {req.start_date} → {req.end_date}
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900 tabular-nums">
+                        {req.total_days} d
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {overlaps.length > 0 ? (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800"
+                            title={overlaps.map((o) => `${o.employee_name} (${o.start_date} to ${o.end_date})`).join(', ')}
                           >
-                            {req.leaveTypeName}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-xs">
-                            <span className="font-medium text-foreground">{req.startDate}</span>
-                            <span className="text-muted-foreground"> to </span>
-                            <span className="font-medium text-foreground">{req.endDate}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-xs">
-                            <span className="font-semibold text-foreground">{req.totalDays}</span>{' '}
-                            {req.totalDays === 1 ? 'day' : 'days'}
-                            <div className="text-[11px] text-muted-foreground capitalize">
-                              {req.dayType.toLowerCase().replace('_', ' ')}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {req.appliedAt
-                            ? new Date(req.appliedAt).toLocaleDateString()
-                            : new Date(req.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <LeaveStatusBadge status={req.status} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {isPending && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 px-2 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-300"
-                                  title="Approve"
-                                  onClick={() => handleOpenApprove(req)}
-                                >
-                                  <Check className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 px-2 text-rose-700 hover:text-rose-800 hover:bg-rose-50 border-rose-300"
-                                  title="Reject"
-                                  onClick={() => handleOpenReject(req)}
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 px-2 text-sky-700 hover:text-sky-800 hover:bg-sky-50 border-sky-300"
-                                  title="Request Clarification"
-                                  onClick={() => handleOpenClarify(req)}
-                                >
-                                  <HelpCircle className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              asChild
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 px-2 text-muted-foreground hover:text-foreground"
-                              title="View Details"
-                            >
-                              <Link href={`/manager/approvals/${req.id}`}>
-                                <Eye className="h-3.5 w-3.5 mr-1" /> View
-                              </Link>
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                            <AlertTriangle className="h-3 w-3 text-amber-600" />
+                            {overlaps.length} teammate{overlaps.length > 1 ? 's' : ''} on leave
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-slate-400">No conflicts</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                            req.status === 'APPROVED'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : req.status === 'PENDING_MANAGER_APPROVAL'
+                              ? 'bg-amber-100 text-amber-800'
+                              : req.status === 'PENDING_HR_APPROVAL'
+                              ? 'bg-blue-100 text-blue-800'
+                              : req.status === 'CLARIFICATION_REQUESTED'
+                              ? 'bg-indigo-100 text-indigo-800'
+                              : req.status === 'REJECTED'
+                              ? 'bg-rose-100 text-rose-800'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {req.status.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedRequest(req)}
+                            className="h-8 px-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 text-xs gap-1"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            View
+                          </Button>
 
-          {/* Pagination bar */}
-          <div className="flex items-center justify-between p-4 border-t text-xs text-muted-foreground">
-            <div>
-              Showing {requests.length > 0 ? (page - 1) * pageSize + 1 : 0} to{' '}
-              {Math.min(page * pageSize, total)} of {total} requests
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-2"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span>
-                Page {page} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-2"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                          {activeTab === 'PENDING' && (
+                            <>
+                              {isSelf ? (
+                                <span className="text-[11px] text-slate-400 italic px-2">
+                                  Self-approval prohibited
+                                </span>
+                              ) : (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      setApproveTargetId(req.id)
+                                      setApproveComments('')
+                                    }}
+                                    className="h-8 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1 font-semibold"
+                                  >
+                                    <Check className="h-3.5 w-3.5" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      setClarifyTargetId(req.id)
+                                      setClarifyQuestion('')
+                                    }}
+                                    className="h-8 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs gap-1 border border-indigo-200"
+                                  >
+                                    <HelpCircle className="h-3.5 w-3.5" />
+                                    Clarify
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setRejectTargetId(req.id)
+                                      setRejectReason('')
+                                    }}
+                                    className="h-8 px-2 text-rose-600 hover:bg-rose-50 border-rose-200 text-xs gap-1"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                    Reject
+                                  </Button>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-      {/* Action Dialog (Approve, Reject, Clarify) */}
-      <Dialog open={Boolean(activeModal && activeModal !== 'BULK_APPROVE')} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent>
+      {/* Approve Modal */}
+      <Dialog open={Boolean(approveTargetId)} onOpenChange={() => setApproveTargetId(null)}>
+        <DialogContent className="max-w-md bg-white border-slate-200">
           <DialogHeader>
-            <DialogTitle>
-              {activeModal === 'APPROVE'
-                ? 'Approve Leave Request'
-                : activeModal === 'REJECT'
-                ? 'Reject Leave Request'
-                : 'Request Clarification'}
-            </DialogTitle>
-            <DialogDescription>
-              {targetRequest?.employeeName} &bull; {targetRequest?.leaveTypeName} ({targetRequest?.totalDays} days) &bull;{' '}
-              {targetRequest?.startDate} to {targetRequest?.endDate}
+            <DialogTitle className="text-base font-bold text-slate-900">Confirm Manager Approval</DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Approving will forward this request to the HR Department for final approval.
             </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-3 py-2">
-            <Label htmlFor="action-input">
-              {activeModal === 'APPROVE'
-                ? 'Optional Comments'
-                : activeModal === 'REJECT'
-                ? 'Reason for Rejection (Required)'
-                : 'Clarification Question / Details (Required)'}
+          <div className="py-2 space-y-2">
+            <Label htmlFor="approveNotes" className="text-xs font-semibold text-slate-700">
+              Optional Manager Note / Comment
             </Label>
             <Textarea
-              id="action-input"
-              rows={3}
-              placeholder={
-                activeModal === 'APPROVE'
-                  ? 'Add any handover notes or remarks...'
-                  : activeModal === 'REJECT'
-                  ? 'Specify why this leave cannot be approved...'
-                  : 'Specify what additional details or documents are needed...'
-              }
-              value={modalComment}
-              onChange={(e) => setModalComment(e.target.value)}
+              id="approveNotes"
+              value={approveComments}
+              onChange={(e) => setApproveComments(e.target.value)}
+              placeholder="e.g. Work is covered, approved for vacation..."
+              rows={2}
+              className="text-xs"
             />
           </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setActiveModal(null)} disabled={isSubmitting}>
+            <Button variant="outline" size="sm" onClick={() => setApproveTargetId(null)}>
               Cancel
             </Button>
-            <Button
-              variant={activeModal === 'REJECT' ? 'destructive' : 'default'}
-              onClick={handleConfirmAction}
-              disabled={isSubmitting}
-            >
-              {isSubmitting
-                ? 'Processing...'
-                : activeModal === 'APPROVE'
-                ? 'Confirm Approval'
-                : activeModal === 'REJECT'
-                ? 'Confirm Rejection'
-                : 'Send Clarification Request'}
+            <Button size="sm" onClick={handleConfirmApprove} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+              Approve & Forward to HR
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Approve Confirmation Dialog */}
-      <Dialog open={activeModal === 'BULK_APPROVE'} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="max-w-lg">
+      {/* Reject Modal */}
+      <Dialog open={Boolean(rejectTargetId)} onOpenChange={() => setRejectTargetId(null)}>
+        <DialogContent className="max-w-md bg-white border-slate-200">
           <DialogHeader>
-            <DialogTitle>Bulk Approve Requests ({selectedIds.length})</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to approve the following {selectedIds.length} leave requests at once?
+            <DialogTitle className="text-base font-bold text-slate-900">Reject Leave Request</DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Specify the reason for rejecting this application. The employee will be notified and reserved days will be refunded.
             </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2 divide-y text-xs">
-            {selectedRequests.map((req) => (
-              <div key={req.id} className="py-1.5 flex items-center justify-between">
-                <div>
-                  <span className="font-semibold text-foreground">{req.employeeName}</span>{' '}
-                  <span className="text-muted-foreground">({req.employeeCode})</span>
-                  <p className="text-[11px] text-muted-foreground">
-                    {req.startDate} to {req.endDate} &bull; {req.totalDays} days
-                  </p>
-                </div>
-                <Badge variant="outline" className="text-[10px]">
-                  {req.leaveTypeName}
-                </Badge>
-              </div>
-            ))}
-          </div>
-
-          <div className="space-y-2 pt-2">
-            <Label htmlFor="bulk-comment">Optional Comments for all requests</Label>
-            <Input
-              id="bulk-comment"
-              placeholder="e.g., Bulk approved for team sprint planning"
-              value={modalComment}
-              onChange={(e) => setModalComment(e.target.value)}
+          <div className="py-2 space-y-2">
+            <Label htmlFor="rejectReason" className="text-xs font-semibold text-slate-700">
+              Rejection Reason <span className="text-rose-500">*</span>
+            </Label>
+            <Textarea
+              id="rejectReason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Critical release deadline scheduled on these dates..."
+              rows={3}
+              className="text-xs"
             />
           </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setActiveModal(null)} disabled={isSubmitting}>
+            <Button variant="outline" size="sm" onClick={() => setRejectTargetId(null)}>
               Cancel
             </Button>
-            <Button
-              variant="default"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={handleConfirmAction}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Approving All...' : `Approve ${selectedIds.length} Requests`}
+            <Button size="sm" onClick={handleConfirmReject} className="bg-rose-600 hover:bg-rose-700 text-white font-semibold">
+              Confirm Rejection
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Clarification Modal */}
+      <Dialog open={Boolean(clarifyTargetId)} onOpenChange={() => setClarifyTargetId(null)}>
+        <DialogContent className="max-w-md bg-white border-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900">Request Clarification</DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Ask the employee for more details. The request will move to Clarification Needed status.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-2">
+            <Label htmlFor="clarifyQuestion" className="text-xs font-semibold text-slate-700">
+              Clarification Question / Note <span className="text-rose-500">*</span>
+            </Label>
+            <Textarea
+              id="clarifyQuestion"
+              value={clarifyQuestion}
+              onChange={(e) => setClarifyQuestion(e.target.value)}
+              placeholder="e.g. Please confirm if ticket ABC-102 will be completed before departure..."
+              rows={3}
+              className="text-xs"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setClarifyTargetId(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleConfirmClarify} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
+              Send Clarification Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Request Details Modal */}
+      {selectedRequest && (
+        <Dialog open={Boolean(selectedRequest)} onOpenChange={() => setSelectedRequest(null)}>
+          <DialogContent className="max-w-lg bg-white border-slate-200">
+            <DialogHeader className="border-b border-slate-100 pb-3">
+              <div className="flex items-center justify-between">
+                <DialogTitle className="text-base font-bold text-slate-900 font-mono">
+                  {selectedRequest.request_number}
+                </DialogTitle>
+                <Badge variant="outline">{selectedRequest.status.replace(/_/g, ' ')}</Badge>
+              </div>
+              <DialogDescription className="text-xs text-slate-500">
+                Submitted by {selectedRequest.employee_name} ({selectedRequest.department_name})
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2 text-xs">
+              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg">
+                <div>
+                  <p className="text-slate-400 font-medium">Leave Type</p>
+                  <p className="font-semibold text-slate-800 mt-0.5">{selectedRequest.leave_type_name}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-medium">Duration</p>
+                  <p className="font-semibold text-slate-800 mt-0.5">{selectedRequest.total_days} working days</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-medium">Schedule</p>
+                  <p className="font-semibold text-slate-800 mt-0.5">{selectedRequest.start_date} → {selectedRequest.end_date}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-medium">Day Schedule</p>
+                  <p className="font-semibold text-slate-800 mt-0.5">{selectedRequest.day_type.replace(/_/g, ' ')}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-slate-400 font-medium">Employee Justification</p>
+                <p className="mt-1 p-2.5 bg-slate-50 rounded border border-slate-100 text-slate-700 leading-relaxed">
+                  {selectedRequest.reason}
+                </p>
+              </div>
+
+              {selectedRequest.handover_notes && (
+                <div>
+                  <p className="text-slate-400 font-medium">Handover & Contact Notes</p>
+                  <p className="mt-1 p-2.5 bg-slate-50 rounded border border-slate-100 text-slate-700">
+                    {selectedRequest.handover_notes}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="border-t border-slate-100 pt-3">
+              <Button variant="outline" size="sm" onClick={() => setSelectedRequest(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

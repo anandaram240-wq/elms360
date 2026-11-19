@@ -49,7 +49,7 @@ export const ROLE_LABELS: Record<RoleCode, string> = {
 }
 
 // ---- Release Identifier ----
-export const RELEASE_IDENTIFIER = 'ELMS360_RELEASE_V1_2_RECOVERY'
+export const RELEASE_IDENTIFIER = 'ELMS360_V3_LIVE'
 
 // ---- Dashboard routes by role ----
 export const ROUTE_BY_ROLE: Record<RoleCode, string> = {

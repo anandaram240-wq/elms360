@@ -111,12 +111,13 @@ export function Header({
               <Avatar className="h-8 w-8 border border-slate-200 dark:border-slate-700">
                 {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
                 <AvatarFallback className="bg-blue-100 text-blue-800 text-xs font-semibold dark:bg-blue-950 dark:text-blue-300">
-                  {user.name
+                  {(user?.name || "User")
                     .split(" ")
+                    .filter(Boolean)
                     .map((n) => n[0])
                     .join("")
                     .slice(0, 2)
-                    .toUpperCase()}
+                    .toUpperCase() || "U"}
                 </AvatarFallback>
               </Avatar>
             </button>
@@ -128,8 +129,8 @@ export function Header({
           >
             <DropdownMenuLabel className="px-3 py-2 font-normal">
               <div className="flex flex-col space-y-0.5">
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{user.name}</p>
-                <p className="text-xs text-slate-500 truncate dark:text-slate-400">{user.email}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{user?.name || "Employee"}</p>
+                <p className="text-xs text-slate-500 truncate dark:text-slate-400">{user?.email || ""}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="my-1 bg-slate-100 dark:bg-slate-800" />
