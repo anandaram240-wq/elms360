@@ -515,11 +515,21 @@ export class MockQueryBuilder {
       const items = Array.isArray(this.payload) ? this.payload : [this.payload]
       const created: any[] = []
       for (const item of items) {
+        let requestNumber = item.request_number
+        if (this.tableName === 'leave_requests' && !requestNumber) {
+          const year = item.start_date ? item.start_date.split('-')[0] : new Date().getFullYear()
+          const count = (db.leave_requests?.length || 0) + 1
+          requestNumber = `LR-${year}-${String(count).padStart(6, '0')}`
+        }
         const newItem = {
           id: item.id || `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          ...(requestNumber ? { request_number: requestNumber } : {}),
           created_at: item.created_at || new Date().toISOString(),
           updated_at: item.updated_at || new Date().toISOString(),
           ...item,
+        }
+        if (requestNumber && !newItem.request_number) {
+          newItem.request_number = requestNumber
         }
         table.push(newItem)
         created.push(this.resolveRelationships(newItem))
@@ -666,40 +676,263 @@ export function createMockSupabaseClient(activeUser?: any) {
     async rpc(functionName: string, params?: any) {
       if (functionName === 'submit_leave_request') {
         const requestId = params?.p_request_id
+        const employeeId = params?.p_employee_id
         const req = db.leave_requests.find((r) => r.id === requestId)
-        if (req) {
-          req.status = 'PENDING_MANAGER_APPROVAL'
-          req.updated_at = new Date().toISOString()
-          persistDb(db)
+        if (!req) {
+          return { data: null, error: { message: `Leave request not found: ${requestId}` } }
         }
+
+        const employee = db.employees.find((e) => e.id === (employeeId || req.employee_id))
+        const now = new Date().toISOString()
+        const startYear = req.start_date ? parseInt(req.start_date.split('-')[0], 10) : new Date().getFullYear()
+
+        // Find primary manager from reporting_relationships
+        const rep = db.reporting_relationships.find(
+          (r) => r.employee_id === req.employee_id && r.relationship_type === 'PRIMARY' && r.is_active
+        )
+        const managerId = rep?.manager_id || null
+
+        // 1. Update leave_request
+        req.status = 'PENDING_MANAGER_APPROVAL'
+        req.current_approver_id = managerId
+        req.applied_at = req.applied_at || now
+        req.updated_at = now
+        req.current_step_order = 1
+
+        // 2. Reserve balance (increment pending)
+        const balance = db.leave_balances.find(
+          (b) => b.employee_id === req.employee_id && b.leave_type_id === req.leave_type_id && b.fiscal_year === startYear
+        )
+        if (balance) {
+          balance.pending = Number(balance.pending || 0) + Number(req.total_days || 0)
+          balance.updated_at = now
+        }
+
+        // 3. Ledger entry
+        db.leave_balance_ledger = db.leave_balance_ledger || []
+        db.leave_balance_ledger.push({
+          id: `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          employee_id: req.employee_id,
+          leave_type_id: req.leave_type_id,
+          organization_id: req.organization_id,
+          fiscal_year: startYear,
+          transaction_type: 'PENDING_RESERVE',
+          amount: Number(req.total_days || 0),
+          balance_before: balance ? Number(balance.available_balance) : 0,
+          balance_after: balance ? Number(balance.available_balance) : 0,
+          leave_request_id: req.id,
+          reason: 'Leave request submitted',
+          created_at: now,
+        })
+
+        // 4. Approval action
+        db.approval_actions = db.approval_actions || []
+        db.approval_actions.push({
+          id: `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          leave_request_id: req.id,
+          step_order: 1,
+          actor_id: req.employee_id,
+          action: 'SUBMITTED',
+          previous_status: 'DRAFT',
+          new_status: 'PENDING_MANAGER_APPROVAL',
+          comments: req.reason || 'Leave request submitted by employee',
+          acted_at: now,
+        })
+
+        // 5. Notification for manager
+        if (managerId) {
+          db.notifications = db.notifications || []
+          db.notifications.push({
+            id: `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            organization_id: req.organization_id,
+            recipient_id: managerId,
+            sender_id: req.employee_id,
+            type: 'LEAVE_SUBMITTED',
+            title: 'New Leave Request Pending Approval',
+            message: `${employee?.full_name || 'An employee'} has submitted a leave request from ${req.start_date} to ${req.end_date} (${req.total_days} days).`,
+            leave_request_id: req.id,
+            is_read: false,
+            created_at: now,
+          })
+        }
+
+        persistDb(db)
         return { data: true, error: null }
       }
       if (functionName === 'process_approval_action') {
         const requestId = params?.p_request_id
         const action = String(params?.p_action || '').toUpperCase()
         const comments = params?.p_comments
+        const actorId = params?.p_actor_id
         const req = db.leave_requests.find((r) => r.id === requestId)
-        if (req) {
-          if (action === 'APPROVE' || action === 'APPROVED') {
-            req.status = req.status === 'PENDING_MANAGER_APPROVAL' ? 'PENDING_HR_APPROVAL' : 'APPROVED'
-            if (req.status === 'APPROVED') {
-              req.approved_at = new Date().toISOString()
-            }
-          } else if (action === 'REJECT' || action === 'REJECTED') {
-            req.status = 'REJECTED'
-            req.rejection_reason = comments || req.rejection_reason
-          } else if (
-            action === 'REQUEST_CLARIFICATION' ||
-            action === 'CLARIFY' ||
-            action === 'CLARIFICATION_REQUESTED'
-          ) {
-            req.status = 'CLARIFICATION_REQUESTED'
-            req.clarification_message = comments || req.clarification_message
-          }
-          req.updated_at = new Date().toISOString()
-          persistDb(db)
+        if (!req) {
+          return { data: null, error: { message: `Leave request not found: ${requestId}` } }
         }
-        return { data: { success: true, newStatus: req?.status || 'APPROVED' }, error: null }
+
+        const now = new Date().toISOString()
+        const startYear = req.start_date ? parseInt(req.start_date.split('-')[0], 10) : new Date().getFullYear()
+        const balance = db.leave_balances.find(
+          (b) => b.employee_id === req.employee_id && b.leave_type_id === req.leave_type_id && b.fiscal_year === startYear
+        )
+        const previousStatus = req.status
+
+        if (action === 'APPROVE' || action === 'APPROVED') {
+          if (req.status === 'PENDING_MANAGER_APPROVAL') {
+            // Find HR Admin for second stage
+            const hrRole = db.roles.find((r) => r.code === 'HR_ADMIN')
+            const hrAssignment = hrRole ? db.employee_role_assignments.find((a) => a.role_id === hrRole.id && a.is_active) : null
+            const hrAdminId = hrAssignment?.employee_id || null
+
+            req.status = 'PENDING_HR_APPROVAL'
+            req.current_step_order = 2
+            req.current_approver_id = hrAdminId
+            req.updated_at = now
+
+            // Add notification for HR
+            if (hrAdminId) {
+              db.notifications = db.notifications || []
+              db.notifications.push({
+                id: `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                organization_id: req.organization_id,
+                recipient_id: hrAdminId,
+                sender_id: actorId || req.employee_id,
+                type: 'LEAVE_STATUS_CHANGED',
+                title: 'Leave Request Pending HR Approval',
+                message: `Request ${req.request_number} was approved by manager and is now pending HR verification.`,
+                leave_request_id: req.id,
+                is_read: false,
+                created_at: now,
+              })
+            }
+          } else {
+            // Final Approval (HR or direct)
+            req.status = 'APPROVED'
+            req.approved_at = now
+            req.current_approver_id = null
+            req.updated_at = now
+
+            // Deduct balance: pending -= total_days, used += total_days, available -= total_days
+            if (balance) {
+              balance.pending = Math.max(0, Number(balance.pending || 0) - Number(req.total_days || 0))
+              balance.used = Number(balance.used || 0) + Number(req.total_days || 0)
+              balance.available_balance = Math.max(0, Number(balance.available_balance || 0) - Number(req.total_days || 0))
+              balance.updated_at = now
+
+              db.leave_balance_ledger = db.leave_balance_ledger || []
+              db.leave_balance_ledger.push({
+                id: `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                employee_id: req.employee_id,
+                leave_type_id: req.leave_type_id,
+                organization_id: req.organization_id,
+                fiscal_year: startYear,
+                transaction_type: 'USAGE',
+                amount: Number(req.total_days || 0),
+                balance_before: Number(balance.available_balance) + Number(req.total_days || 0),
+                balance_after: Number(balance.available_balance),
+                leave_request_id: req.id,
+                reason: 'Leave request approved and utilized',
+                created_at: now,
+              })
+            }
+
+            // Notification for employee
+            db.notifications = db.notifications || []
+            db.notifications.push({
+              id: `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+              organization_id: req.organization_id,
+              recipient_id: req.employee_id,
+              sender_id: actorId || 'SYSTEM',
+              type: 'LEAVE_APPROVED',
+              title: 'Leave Request Approved',
+              message: `Your leave request ${req.request_number} from ${req.start_date} to ${req.end_date} has been approved.`,
+              leave_request_id: req.id,
+              is_read: false,
+              created_at: now,
+            })
+          }
+        } else if (action === 'REJECT' || action === 'REJECTED') {
+          req.status = 'REJECTED'
+          req.rejection_reason = comments || req.rejection_reason || 'Rejected by approver'
+          req.current_approver_id = null
+          req.updated_at = now
+
+          // Release pending reserve
+          if (balance) {
+            balance.pending = Math.max(0, Number(balance.pending || 0) - Number(req.total_days || 0))
+            balance.updated_at = now
+
+            db.leave_balance_ledger = db.leave_balance_ledger || []
+            db.leave_balance_ledger.push({
+              id: `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+              employee_id: req.employee_id,
+              leave_type_id: req.leave_type_id,
+              organization_id: req.organization_id,
+              fiscal_year: startYear,
+              transaction_type: 'PENDING_RELEASE',
+              amount: Number(req.total_days || 0),
+              balance_before: Number(balance.available_balance),
+              balance_after: Number(balance.available_balance),
+              leave_request_id: req.id,
+              reason: `Leave request rejected: ${comments || 'No reason provided'}`,
+              created_at: now,
+            })
+          }
+
+          // Notification for employee
+          db.notifications = db.notifications || []
+          db.notifications.push({
+            id: `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            organization_id: req.organization_id,
+            recipient_id: req.employee_id,
+            sender_id: actorId || 'SYSTEM',
+            type: 'LEAVE_REJECTED',
+            title: 'Leave Request Rejected',
+            message: `Your leave request ${req.request_number} from ${req.start_date} to ${req.end_date} was rejected. Reason: ${comments || 'No comments'}`,
+            leave_request_id: req.id,
+            is_read: false,
+            created_at: now,
+          })
+        } else if (
+          action === 'REQUEST_CLARIFICATION' ||
+          action === 'CLARIFY' ||
+          action === 'CLARIFICATION_REQUESTED'
+        ) {
+          req.status = 'CLARIFICATION_REQUESTED'
+          req.clarification_message = comments || req.clarification_message || 'Clarification requested by approver'
+          req.updated_at = now
+
+          // Notification for employee
+          db.notifications = db.notifications || []
+          db.notifications.push({
+            id: `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            organization_id: req.organization_id,
+            recipient_id: req.employee_id,
+            sender_id: actorId || 'SYSTEM',
+            type: 'LEAVE_CLARIFICATION_REQUESTED',
+            title: 'Clarification Requested on Leave Request',
+            message: `Approver requested clarification on request ${req.request_number}: ${comments}`,
+            leave_request_id: req.id,
+            is_read: false,
+            created_at: now,
+          })
+        }
+
+        // Record approval action history
+        db.approval_actions = db.approval_actions || []
+        db.approval_actions.push({
+          id: `gen-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          leave_request_id: req.id,
+          step_order: req.current_step_order || 1,
+          actor_id: actorId || req.employee_id,
+          action: action,
+          previous_status: previousStatus,
+          new_status: req.status,
+          comments: comments || null,
+          acted_at: now,
+        })
+
+        persistDb(db)
+        return { data: { success: true, newStatus: req.status }, error: null }
       }
       return { data: { success: true }, error: null }
     },

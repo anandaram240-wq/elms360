@@ -4717,14 +4717,14 @@ export const SEED_LEAVE_REQUESTS = [
     "request_number": "LR-2026-0001",
     "employee_id": "44444444-0008-0000-0000-000000000001",
     "leave_type_id": "22222222-0001-0000-0000-000000000001",
-    "start_date": "2026-11-24",
-    "end_date": "2026-11-25",
+    "start_date": "2026-11-03",
+    "end_date": "2026-11-07",
     "day_type": "FULL",
-    "total_days": 2.0,
-    "reason": "Family function and personal travel",
-    "status": "PENDING_MANAGER_APPROVAL",
-    "created_at": "2026-11-19T10:00:00Z",
-    "updated_at": "2026-11-19T10:00:00Z"
+    "total_days": 5.0,
+    "reason": "Family trip to Coorg - annual family vacation planned months in advance.",
+    "status": "APPROVED",
+    "created_at": "2026-10-20T10:00:00Z",
+    "updated_at": "2026-10-22T09:30:00Z"
   },
   {
     "id": "aaaaaaaa-1002-0000-0000-000000000001",

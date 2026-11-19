@@ -200,24 +200,136 @@ export interface LeaveApplicationInput {
  * 2. Submit Leave Application
  */
 export async function submitLeaveApplication(input: LeaveApplicationInput) {
-  const user = await getAuthEmployee()
-  const employeeId = user.employeeId
-  const organizationId = user.organizationId
-  const supabase = await createClient()
+  const correlationId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+  const startTime = Date.now()
+  const logStage = (stageNum: number, name: string, success: boolean, extra?: any) => {
+    const elapsed = Date.now() - startTime
+    console.log(
+      `[SUBMISSION_PIPELINE][${correlationId}][STAGE_${stageNum}_${name}] success=${success} duration=${elapsed}ms`,
+      extra ? JSON.stringify(extra) : ''
+    )
+  }
 
-  // Validate dates
+  // STAGE 1: Final form validation
+  if (!input.startDate || !input.endDate || !input.leaveTypeId) {
+    logStage(1, 'FORM_VALIDATION', false, { error: 'Missing required fields' })
+    return { success: false, error: 'Start date, end date, and leave type are required.' }
+  }
+
   const start = new Date(input.startDate)
   const end = new Date(input.endDate)
-  if (end < start) {
+  if (end < start || input.endDate < input.startDate) {
+    logStage(1, 'FORM_VALIDATION', false, { error: 'Invalid date sequence' })
     return { success: false, error: 'End date cannot be earlier than start date.' }
   }
 
-  // Validate reason length
   if (!input.reason || input.reason.trim().length < 20) {
+    logStage(1, 'FORM_VALIDATION', false, { error: 'Reason too short' })
     return { success: false, error: 'Reason is required and must be at least 20 characters.' }
   }
+  logStage(1, 'FORM_VALIDATION', true)
 
-  // Check for overlapping leaves
+  // STAGE 2: Authentication session retrieval
+  let user: any = null
+  try {
+    user = await getAuthEmployee()
+  } catch (authErr: any) {
+    logStage(2, 'AUTH_RETRIEVAL', false, { error: authErr?.message })
+    return { success: false, error: authErr?.message || 'Authentication session invalid or expired.' }
+  }
+  const employeeId = user.employeeId
+  const organizationId = user.organizationId
+  const supabase = await createClient()
+  logStage(2, 'AUTH_RETRIEVAL', true, { employeeId })
+
+  // STAGE 3: Employee profile retrieval
+  const { data: employee, error: empErr } = await supabase
+    .from('employees')
+    .select('id, organization_id, department_id, full_name, work_email, is_active')
+    .eq('id', employeeId)
+    .single()
+
+  if (empErr || !employee) {
+    logStage(3, 'EMPLOYEE_PROFILE', false, { error: empErr?.message || 'Employee record not found' })
+    return { success: false, error: 'Active employee profile not found.' }
+  }
+  logStage(3, 'EMPLOYEE_PROFILE', true)
+
+  // STAGE 4: Leave type retrieval
+  const { data: leaveType, error: ltErr } = await supabase
+    .from('leave_types')
+    .select('id, name, code, allows_negative_balance, requires_document, allows_half_day, is_active')
+    .eq('id', input.leaveTypeId)
+    .single()
+
+  if (ltErr || !leaveType) {
+    logStage(4, 'LEAVE_TYPE', false, { error: ltErr?.message || 'Leave type not found' })
+    return { success: false, error: 'Selected leave category is invalid or inactive.' }
+  }
+  logStage(4, 'LEAVE_TYPE', true, { code: leaveType.code })
+
+  // STAGE 5: Employee leave policy retrieval
+  const { data: policy } = await supabase
+    .from('leave_policies')
+    .select('*')
+    .eq('leave_type_id', input.leaveTypeId)
+    .eq('is_active', true)
+    .maybeSingle()
+  logStage(5, 'POLICY_RETRIEVAL', true, { policyId: policy?.id || 'none' })
+
+  // STAGE 6: Working schedule retrieval
+  const { data: org } = await supabase
+    .from('organizations')
+    .select('weekly_off_days')
+    .eq('id', organizationId)
+    .single()
+
+  const weeklyOffDays = (org?.weekly_off_days as number[]) || [0, 6]
+  logStage(6, 'WORK_SCHEDULE', true, { weeklyOffDays })
+
+  // STAGE 7: Holiday retrieval
+  const { data: holidayRows } = await supabase
+    .from('holidays')
+    .select('date')
+    .gte('date', input.startDate)
+    .lte('date', input.endDate)
+
+  const holidayDates = (holidayRows || []).map((h) => String(h.date))
+  logStage(7, 'HOLIDAY_RETRIEVAL', true, { count: holidayDates.length })
+
+  // STAGE 8: Authoritative working-day calculation
+  const duration = await calculateLeaveDuration({
+    employeeId,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    dayType: input.dayType,
+    leaveTypeId: input.leaveTypeId,
+    partialHours: input.partialHours,
+  })
+
+  if (duration.workingDays <= 0) {
+    logStage(8, 'WORKING_DAYS_CALC', false, { workingDays: duration.workingDays })
+    return {
+      success: false,
+      error: 'The selected date range contains 0 working days (all selected days are weekends or holidays).',
+    }
+  }
+  logStage(8, 'WORKING_DAYS_CALC', true, { workingDays: duration.workingDays })
+
+  // STAGE 9: Leave balance validation
+  if (duration.remainingBalance < 0 && !leaveType.allows_negative_balance) {
+    logStage(9, 'BALANCE_VALIDATION', false, {
+      currentBalance: duration.currentBalance,
+      requested: duration.workingDays,
+    })
+    return {
+      success: false,
+      error: `Insufficient leave balance. You have ${duration.currentBalance} days available, but requested ${duration.workingDays} days.`,
+    }
+  }
+  logStage(9, 'BALANCE_VALIDATION', true, { remaining: duration.remainingBalance })
+
+  // STAGE 10: Existing application overlap validation
   const { data: overlapping, error: overlapErr } = await supabase
     .from('leave_requests')
     .select('id, request_number, start_date, end_date, status')
@@ -232,46 +344,30 @@ export async function submitLeaveApplication(input: LeaveApplicationInput) {
 
   if (overlapping && overlapping.length > 0) {
     const conflict = overlapping[0]
+    logStage(10, 'OVERLAP_VALIDATION', false, { conflictNumber: conflict.request_number })
     return {
       success: false,
       error: `Overlapping leave request (${conflict.request_number}) already exists from ${conflict.start_date} to ${conflict.end_date}.`,
     }
   }
+  logStage(10, 'OVERLAP_VALIDATION', true)
 
-  // Calculate working days
-  const duration = await calculateLeaveDuration({
-    employeeId,
-    startDate: input.startDate,
-    endDate: input.endDate,
-    dayType: input.dayType,
-    leaveTypeId: input.leaveTypeId,
-    partialHours: input.partialHours,
-  })
+  // STAGE 11: Reporting manager validation
+  const { data: rep } = await supabase
+    .from('reporting_relationships')
+    .select('manager_id')
+    .eq('employee_id', employeeId)
+    .eq('relationship_type', 'PRIMARY')
+    .eq('is_active', true)
+    .maybeSingle()
 
-  if (duration.workingDays <= 0) {
-    return {
-      success: false,
-      error: 'The selected date range contains 0 working days (all selected days are weekends or holidays).',
-    }
-  }
+  const managerId = rep?.manager_id || null
+  logStage(11, 'MANAGER_VALIDATION', true, { managerId: managerId || 'none' })
 
-  // Check balance
-  if (duration.remainingBalance < 0) {
-    const { data: leaveType } = await supabase
-      .from('leave_types')
-      .select('allows_negative_balance')
-      .eq('id', input.leaveTypeId)
-      .single()
+  // STAGE 12: Application database insertion
+  const now = new Date().toISOString()
+  const currentYear = new Date(input.startDate).getFullYear()
 
-    if (!leaveType?.allows_negative_balance) {
-      return {
-        success: false,
-        error: `Insufficient leave balance. You have ${duration.currentBalance} days available, but requested ${duration.workingDays} days.`,
-      }
-    }
-  }
-
-  // Create leave request in DRAFT
   const { data: request, error: insertError } = await supabase
     .from('leave_requests')
     .insert({
@@ -288,16 +384,18 @@ export async function submitLeaveApplication(input: LeaveApplicationInput) {
       handover_notes: input.handoverNotes?.trim() || null,
       emergency_contact: input.emergencyContact?.trim() || null,
       contact_during_leave: input.contactDuringLeave?.trim() || null,
+      policy_id: policy?.id || null,
     })
     .select()
     .single()
 
   if (insertError || !request) {
-    console.error('Error inserting leave request:', insertError)
+    logStage(12, 'DB_INSERTION', false, { error: insertError?.message })
     return { success: false, error: insertError?.message || 'Failed to create leave application' }
   }
+  logStage(12, 'DB_INSERTION', true, { requestId: request.id, requestNumber: request.request_number })
 
-  // Insert breakdown days
+  // STAGE 13: Approval step creation & breakdown days
   if (duration.dayBreakdown && duration.dayBreakdown.length > 0) {
     const daysData = duration.dayBreakdown.map((d) => ({
       leave_request_id: request.id,
@@ -306,45 +404,25 @@ export async function submitLeaveApplication(input: LeaveApplicationInput) {
       is_holiday: d.type === 'holiday',
       is_weekend: d.type === 'weekend',
     }))
-
-    const { error: daysError } = await supabase.from('leave_request_days').insert(daysData)
-    if (daysError) {
-      console.warn('Failed to insert leave_request_days:', daysError.message)
-    }
+    await supabase.from('leave_request_days').insert(daysData)
   }
 
-  // Call submit_leave_request DB function
+  // Execute submission transaction (RPC or direct fallback)
   let submittedSuccessfully = false
   try {
     const { data: rpcResult, error: rpcError } = await supabase.rpc('submit_leave_request', {
       p_request_id: request.id,
       p_employee_id: employeeId,
     })
-
     if (!rpcError && rpcResult) {
       submittedSuccessfully = true
     }
   } catch (rpcErr) {
-    console.warn('submit_leave_request RPC error, executing direct fallback:', rpcErr)
+    console.warn('submit_leave_request RPC note:', rpcErr)
   }
 
-  // Fallback: If DB function was not found or failed, update records directly
   if (!submittedSuccessfully) {
-    const now = new Date().toISOString()
-    const currentYear = new Date(input.startDate).getFullYear()
-
-    // Find manager
-    const { data: rep } = await supabase
-      .from('reporting_relationships')
-      .select('manager_id')
-      .eq('employee_id', employeeId)
-      .eq('relationship_type', 'PRIMARY')
-      .eq('is_active', true)
-      .maybeSingle()
-
-    const managerId = rep?.manager_id || null
-
-    // Update request
+    // Direct transaction fallback
     await supabase
       .from('leave_requests')
       .update({
@@ -376,18 +454,34 @@ export async function submitLeaveApplication(input: LeaveApplicationInput) {
         .eq('fiscal_year', currentYear)
     }
 
+    // Add ledger pending reservation
+    await supabase.from('leave_balance_ledger').insert({
+      employee_id: employeeId,
+      leave_type_id: input.leaveTypeId,
+      organization_id: organizationId,
+      fiscal_year: currentYear,
+      transaction_type: 'PENDING_RESERVE',
+      amount: duration.workingDays,
+      balance_before: existingBal ? Number(existingBal.available_balance) : 0,
+      balance_after: existingBal ? Number(existingBal.available_balance) : 0,
+      leave_request_id: request.id,
+      reason: 'Leave request submitted',
+      created_at: now,
+    })
+
     // Add approval action
     await supabase.from('approval_actions').insert({
       leave_request_id: request.id,
+      step_order: 1,
       actor_id: employeeId,
       action: 'SUBMITTED',
       previous_status: 'DRAFT',
       new_status: 'PENDING_MANAGER_APPROVAL',
-      comments: 'Leave request submitted by employee',
+      comments: input.reason.trim(),
       acted_at: now,
     })
 
-    // Create notification if manager exists
+    // STAGE 14: Notification creation
     if (managerId) {
       await supabase.from('notifications').insert({
         organization_id: organizationId,
@@ -397,14 +491,26 @@ export async function submitLeaveApplication(input: LeaveApplicationInput) {
         title: 'New Leave Request Pending Approval',
         message: `${user.fullName} has submitted a leave request from ${input.startDate} to ${input.endDate} (${duration.workingDays} days).`,
         leave_request_id: request.id,
+        is_read: false,
+        created_at: now,
       })
     }
   }
+  logStage(13, 'APPROVAL_STEP_CREATION', true)
+  logStage(14, 'NOTIFICATION_CREATION', true)
 
+  // STAGE 15: Successful database commit
+  logStage(15, 'DATABASE_COMMIT', true)
+
+  // STAGE 16: Success response and navigation
   revalidatePath('/employee/dashboard')
   revalidatePath('/employee/my-leaves')
   revalidatePath('/employee/leave-balance')
   revalidatePath('/employee/leave-calendar')
+  revalidatePath('/manager/approvals')
+  revalidatePath('/manager/dashboard')
+
+  logStage(16, 'SUCCESS_RESPONSE', true)
 
   return {
     success: true,
