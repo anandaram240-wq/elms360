@@ -1,5 +1,15 @@
 # ELMS 360 - Enterprise Leave Management System
 
+[![Live Production Website](https://img.shields.io/badge/Live_Website-elms360.vercel.app-blue?style=for-the-badge&logo=vercel)](https://elms360.vercel.app)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github)](https://github.com/anandaram240-wq/elms360)
+
+### 🌐 Direct Website Links
+- **Production Web Application**: [https://elms360.vercel.app](https://elms360.vercel.app)
+- **Local Web Application**: [http://localhost:3000](http://localhost:3000)
+- **GitHub Source Code Repository**: [https://github.com/anandaram240-wq/elms360](https://github.com/anandaram240-wq/elms360)
+
+---
+
 ELMS 360 is a full-featured, multi-tenant Employee Leave Management System engineered with Next.js 15, React 19, TypeScript, Tailwind CSS, and Supabase (PostgreSQL 15+).
 
 ---
