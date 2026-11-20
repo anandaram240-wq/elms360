@@ -1676,6 +1676,7 @@ export interface OrganizationSettingsInput {
   leaveYearType: 'CALENDAR' | 'FISCAL'
   maxPendingPerEmployee: number
   allowConcurrentLeaves: boolean
+  overlapPolicy?: 'BLOCK' | 'WARN_AND_ALLOW' | 'ALLOW'
   minTeamCoveragePercent: number
   requireHandoverNotes: boolean
   autoApproveAfterDays?: number
@@ -1693,6 +1694,7 @@ export async function updateOrganizationSettings(data: Partial<OrganizationSetti
     if (data.leaveYearType !== undefined) payload.leave_year_type = data.leaveYearType
     if (data.maxPendingPerEmployee !== undefined) payload.max_pending_per_employee = data.maxPendingPerEmployee
     if (data.allowConcurrentLeaves !== undefined) payload.allow_concurrent_leaves = data.allowConcurrentLeaves
+    if (data.overlapPolicy !== undefined) payload.overlap_policy = data.overlapPolicy
     if (data.minTeamCoveragePercent !== undefined) payload.min_team_coverage_percent = data.minTeamCoveragePercent
     if (data.requireHandoverNotes !== undefined) payload.require_handover_notes = data.requireHandoverNotes
     if (data.autoApproveAfterDays !== undefined) payload.auto_approve_after_days = data.autoApproveAfterDays

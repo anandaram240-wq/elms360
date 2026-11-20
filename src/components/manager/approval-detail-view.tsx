@@ -12,6 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
@@ -43,17 +44,19 @@ export interface ApprovalDetailViewProps {
     approvalHistory: any[]
     previousLeaves: any[]
     teamOverlaps: any[]
+    sameEmployeeOverlaps?: any[]
   }
 }
 
 export function ApprovalDetailView({ data }: ApprovalDetailViewProps) {
   const router = useRouter()
-  const { request, balances, approvalHistory, previousLeaves, teamOverlaps } = data
+  const { request, balances, approvalHistory, previousLeaves, teamOverlaps, sameEmployeeOverlaps = [] } = data
   const emp = request.employee
   const lt = request.leaveType
 
   const [activeModal, setActiveModal] = React.useState<'APPROVE' | 'REJECT' | 'CLARIFY' | null>(null)
   const [comment, setComment] = React.useState('')
+  const [overrideJustification, setOverrideJustification] = React.useState('')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [showFullHistory, setShowFullHistory] = React.useState(false)
 
@@ -70,10 +73,21 @@ export function ApprovalDetailView({ data }: ApprovalDetailViewProps) {
 
     try {
       if (activeModal === 'APPROVE') {
+        const hasApprovedOverlap = sameEmployeeOverlaps.some((o: any) => o.isAlreadyApproved)
+        if (hasApprovedOverlap && overrideJustification.trim().length < 5) {
+          toast.error('Please specify an authorized conflict override justification (minimum 5 characters) to approve overlapping approved dates.')
+          setIsSubmitting(false)
+          return
+        }
+
+        const finalComments = hasApprovedOverlap
+          ? `${comment.trim() || 'Approved by Manager'} [AUTHORIZED CONFLICT OVERRIDE: ${overrideJustification.trim()}]`
+          : comment.trim() || undefined
+
         const res = await processApprovalAction({
           requestId: request.id,
           action: 'APPROVE',
-          comments: comment.trim() || undefined,
+          comments: finalComments,
           idempotencyKey,
         })
         if (res.success) {
@@ -408,6 +422,43 @@ export function ApprovalDetailView({ data }: ApprovalDetailViewProps) {
             </CardContent>
           </Card>
 
+          {/* Schedule Overlaps for this Employee (Phase 5 Protection) */}
+          {sameEmployeeOverlaps && sameEmployeeOverlaps.length > 0 && (
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-amber-950">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  Employee Schedule Conflicts ({sameEmployeeOverlaps.length})
+                </CardTitle>
+                <CardDescription className="text-amber-800 text-xs">
+                  This employee has active leave requests overlapping with {request.start_date} to {request.end_date}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="divide-y divide-amber-200/70 rounded-md border border-amber-200 bg-white text-xs">
+                  {sameEmployeeOverlaps.map((o: any) => (
+                    <div key={o.id} className="p-2.5 flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">#{o.requestNumber}</span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {o.startDate} to {o.endDate} ({o.totalDays} day{o.totalDays > 1 ? 's' : ''})
+                          </span>
+                        </div>
+                      </div>
+                      <Badge
+                        variant={o.status === 'APPROVED' ? 'destructive' : 'secondary'}
+                        className="text-[10px]"
+                      >
+                        {o.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Previous Leave History of Employee */}
           <Card>
             <CardHeader className="pb-3">
@@ -591,6 +642,32 @@ export function ApprovalDetailView({ data }: ApprovalDetailViewProps) {
           </DialogHeader>
 
           <div className="space-y-3 py-2">
+            {activeModal === 'APPROVE' && sameEmployeeOverlaps.some((o: any) => o.isAlreadyApproved) && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-xs space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-amber-950">Approved Conflict Override Required</p>
+                    <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                      This employee already has an APPROVED leave request overlapping these dates. An authorized override justification is required.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1 pt-1">
+                  <Label htmlFor="override-justification" className="text-[11px] font-semibold text-amber-950">
+                    Override Justification <span className="text-red-600">*</span>
+                  </Label>
+                  <Input
+                    id="override-justification"
+                    value={overrideJustification}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOverrideJustification(e.target.value)}
+                    placeholder="e.g. Schedule adjustment authorized by management"
+                    className="border-amber-300 text-xs h-8.5 bg-white"
+                  />
+                </div>
+              </div>
+            )}
+
             <Label htmlFor="action-reason">
               {activeModal === 'APPROVE'
                 ? 'Optional Comments'

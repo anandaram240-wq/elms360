@@ -232,6 +232,17 @@ export async function GET() {
       }))
     }
 
+    // 10. Fetch organization settings for overlap policy
+    const { data: rawSettings } = await admin
+      .from('organization_settings')
+      .select('*')
+      .limit(1)
+      .maybeSingle()
+
+    const overlapPolicy: 'BLOCK' | 'WARN_AND_ALLOW' | 'ALLOW' =
+      (rawSettings?.overlap_policy as any) ||
+      (rawSettings?.allow_concurrent_leaves ? 'ALLOW' : 'WARN_AND_ALLOW')
+
     return NextResponse.json({
       success: true,
       currentUser: activeUser,
@@ -244,6 +255,7 @@ export async function GET() {
       ledger,
       notifications,
       weeklyOffDays,
+      overlapPolicy,
     })
   } catch (err: any) {
     console.error('[SYNC_ERROR]', err)

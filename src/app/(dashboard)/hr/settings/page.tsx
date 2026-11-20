@@ -36,6 +36,7 @@ export default function HRSettingsPage() {
     leaveYearType: 'CALENDAR' as 'CALENDAR' | 'FISCAL',
     maxPendingPerEmployee: 3,
     allowConcurrentLeaves: false,
+    overlapPolicy: 'WARN_AND_ALLOW' as 'BLOCK' | 'WARN_AND_ALLOW' | 'ALLOW',
     minTeamCoveragePercent: 60,
     requireHandoverNotes: true,
     autoApproveAfterDays: 7,
@@ -59,6 +60,7 @@ export default function HRSettingsPage() {
         leaveYearType: settings.leaveYearType,
         maxPendingPerEmployee: Number(settings.maxPendingPerEmployee),
         allowConcurrentLeaves: settings.allowConcurrentLeaves,
+        overlapPolicy: settings.overlapPolicy,
         minTeamCoveragePercent: Number(settings.minTeamCoveragePercent),
         requireHandoverNotes: settings.requireHandoverNotes,
         autoApproveAfterDays: Number(settings.autoApproveAfterDays),
@@ -188,21 +190,40 @@ export default function HRSettingsPage() {
               </div>
             </div>
 
-            <div className="space-y-3 pt-3 border-t">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Allow Concurrent / Overlapping Leaves</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Permit applying for overlapping dates across different leave types
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.allowConcurrentLeaves}
-                  onCheckedChange={(val) => setSettings({ ...settings, allowConcurrentLeaves: val })}
-                />
+            <div className="space-y-4 pt-3 border-t">
+              <div className="space-y-1.5">
+                <Label htmlFor="overlapPolicy">Leave Overlap Submission Policy</Label>
+                <Select
+                  value={settings.overlapPolicy || 'WARN_AND_ALLOW'}
+                  onValueChange={(val: any) =>
+                    setSettings({
+                      ...settings,
+                      overlapPolicy: val,
+                      allowConcurrentLeaves: val === 'ALLOW',
+                    })
+                  }
+                >
+                  <SelectTrigger id="overlapPolicy">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="WARN_AND_ALLOW">
+                      WARN & ALLOW (Recommended) — Display conflict warning, allow submission for manager review
+                    </SelectItem>
+                    <SelectItem value="BLOCK">
+                      BLOCK (Strict) — Hard block employees from submitting overlapping dates
+                    </SelectItem>
+                    <SelectItem value="ALLOW">
+                      ALLOW (Permissive) — Silently permit concurrent applications
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Controls whether employees can submit leave requests that overlap on eligible working days.
+                </p>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between pt-2">
                 <div>
                   <Label>Mandatory Work Handover Notes</Label>
                   <p className="text-xs text-muted-foreground">

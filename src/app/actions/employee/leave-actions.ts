@@ -5,6 +5,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/app/actions/auth'
 import { calculateWorkingDays, DayBreakdown } from '@/lib/date-utils'
+import {
+  analyzeLeaveOverlap,
+  type OverlapPolicy,
+  type LeaveRequestRecord,
+} from '@/lib/overlap-calculator'
 import type {
   LeaveStatus,
   DayType,
@@ -329,28 +334,54 @@ export async function submitLeaveApplication(input: LeaveApplicationInput) {
   }
   logStage(9, 'BALANCE_VALIDATION', true, { remaining: duration.remainingBalance })
 
-  // STAGE 10: Existing application overlap validation
-  const { data: overlapping, error: overlapErr } = await supabase
+  // STAGE 10: Existing application overlap validation using configurable policy (WARN_AND_ALLOW default)
+  const { data: rawEmpRequests } = await supabase
     .from('leave_requests')
-    .select('id, request_number, start_date, end_date, status')
+    .select('id, request_number, employee_id, start_date, end_date, status, leave_types(name, code)')
     .eq('employee_id', employeeId)
-    .not('status', 'in', '("REJECTED","WITHDRAWN","CANCELLED")')
-    .lte('start_date', input.endDate)
-    .gte('end_date', input.startDate)
+    .not('status', 'in', '("REJECTED","WITHDRAWN","CANCELLED","DRAFT")')
 
-  if (overlapErr) {
-    console.error('Error checking overlap:', overlapErr)
-  }
+  const { data: orgSettings } = await supabase
+    .from('organization_settings')
+    .select('*')
+    .eq('organization_id', user.organizationId)
+    .limit(1)
+    .maybeSingle()
 
-  if (overlapping && overlapping.length > 0) {
-    const conflict = overlapping[0]
-    logStage(10, 'OVERLAP_VALIDATION', false, { conflictNumber: conflict.request_number })
+  const overlapPolicy: OverlapPolicy =
+    (orgSettings?.overlap_policy as OverlapPolicy) ||
+    (orgSettings?.allow_concurrent_leaves ? 'ALLOW' : 'WARN_AND_ALLOW')
+
+  const overlapAnalysis = analyzeLeaveOverlap({
+    employeeId,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    existingRequests: (rawEmpRequests || []).map((r: any) => ({
+      id: r.id,
+      request_number: r.request_number,
+      employee_id: r.employee_id,
+      start_date: String(r.start_date),
+      end_date: String(r.end_date),
+      status: r.status,
+      leave_type_name: r.leave_types?.name,
+      leave_type_code: r.leave_types?.code,
+    })),
+    weeklyOffDays: [0, 6],
+    holidayDates: [],
+    policy: overlapPolicy,
+  })
+
+  if (overlapAnalysis.hasWorkingDayOverlap && !overlapAnalysis.canSubmit) {
+    logStage(10, 'OVERLAP_VALIDATION', false, { conflictNumber: overlapAnalysis.conflicts[0]?.requestNumber })
     return {
       success: false,
-      error: `Overlapping leave request (${conflict.request_number}) already exists from ${conflict.start_date} to ${conflict.end_date}.`,
+      error: overlapAnalysis.blockingError || 'Application blocked due to overlapping leave.',
     }
   }
-  logStage(10, 'OVERLAP_VALIDATION', true)
+  logStage(10, 'OVERLAP_VALIDATION', true, {
+    hasWorkingDayOverlap: overlapAnalysis.hasWorkingDayOverlap,
+    policy: overlapPolicy,
+  })
 
   // STAGE 11: Reporting manager validation
   const { data: rep } = await supabase

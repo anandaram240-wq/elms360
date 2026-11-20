@@ -35,6 +35,7 @@ import {
 import { DatePicker } from '@/components/shared/date-picker'
 import { useElmsStore } from '@/lib/store/elms-store'
 import { DayType } from '@/types/app'
+import { analyzeLeaveOverlap, type LeaveRequestRecord } from '@/lib/overlap-calculator'
 
 export default function ApplyLeavePage() {
   const router = useRouter()
@@ -82,18 +83,69 @@ export default function ApplyLeavePage() {
   const workingDays = durationResult?.workingDays || 0
   const remainingAfterApproval = Math.max(0, availableDays - workingDays)
 
-  // Overlap check
-  const overlapConflict = React.useMemo(() => {
-    if (!startDateStr || !endDateStr) return null
-    return state.leaveRequests.find((r) => {
-      if (r.employee_id !== employeeId) return false
-      if (r.status === 'REJECTED' || r.status === 'WITHDRAWN' || r.status === 'CANCELLED') return false
-      return !(r.end_date < startDateStr || r.start_date > endDateStr)
-    })
-  }, [state.leaveRequests, employeeId, startDateStr, endDateStr])
+  // Overlap Analysis using authoritative overlap-calculator
+  const overlapAnalysis = React.useMemo(() => {
+    if (!startDateStr || !endDateStr || !employeeId) return null
 
-  // Validation
+    const existingEmpRequests: LeaveRequestRecord[] = state.leaveRequests.map((r) => ({
+      id: r.id,
+      request_number: r.request_number,
+      employee_id: r.employee_id,
+      start_date: r.start_date,
+      end_date: r.end_date,
+      status: r.status,
+      leave_type_name: r.leave_type_name,
+      leave_type_code: r.leave_type_code,
+    }))
+
+    const holidayDates = state.holidays.map((h) => h.date)
+
+    return analyzeLeaveOverlap({
+      employeeId,
+      startDate: startDateStr,
+      endDate: endDateStr,
+      existingRequests: existingEmpRequests,
+      weeklyOffDays: state.weeklyOffDays || [0, 6],
+      holidayDates,
+      policy: state.overlapPolicy || 'WARN_AND_ALLOW',
+    })
+  }, [
+    startDateStr,
+    endDateStr,
+    employeeId,
+    state.leaveRequests,
+    state.holidays,
+    state.weeklyOffDays,
+    state.overlapPolicy,
+  ])
+
+  // Dynamic next working day finder for 0-working-day weekend selections
+  const getNextAvailableWorkingDays = React.useCallback(() => {
+    const base = startDate || new Date()
+    const result: Date[] = []
+    const curr = new Date(base)
+    curr.setDate(curr.getDate() + 1)
+
+    const weeklyOff = state.weeklyOffDays || [0, 6]
+    const holidaySet = new Set(state.holidays.map((h) => h.date))
+
+    while (result.length < 2) {
+      const dow = curr.getDay()
+      const dStr = format(curr, 'yyyy-MM-dd')
+      if (!weeklyOff.includes(dow) && !holidaySet.has(dStr)) {
+        result.push(new Date(curr))
+      }
+      curr.setDate(curr.getDate() + 1)
+      if (result.length >= 2) break
+    }
+
+    return result
+  }, [startDate, state.weeklyOffDays, state.holidays])
+
+  // Validation & Policy Assessment
   let validationError: string | null = null
+  let overlapWarning: string | null = null
+
   if (!leaveTypeId) {
     validationError = 'Please select a leave category.'
   } else if (!startDate || !endDate) {
@@ -104,10 +156,16 @@ export default function ApplyLeavePage() {
     validationError = 'The selected dates contain 0 working days (weekends or holidays are automatically exempted by policy).'
   } else if (selectedType?.code !== 'UPL' && workingDays > availableDays) {
     validationError = `Insufficient leave balance (${availableDays} days available, but requested ${workingDays} days).`
-  } else if (overlapConflict) {
-    validationError = `Overlaps with existing leave request (${overlapConflict.request_number}: ${overlapConflict.start_date} to ${overlapConflict.end_date}).`
+  } else if (overlapAnalysis?.hasWorkingDayOverlap && !overlapAnalysis.canSubmit) {
+    // Under strict BLOCK policy
+    validationError = overlapAnalysis.blockingError
   } else if (reason.trim().length < 3) {
     validationError = 'Please enter a reason for your leave (minimum 3 characters).'
+  }
+
+  // Under WARN_AND_ALLOW policy, set overlapWarning without blocking submission
+  if (overlapAnalysis?.hasWorkingDayOverlap && overlapAnalysis.canSubmit) {
+    overlapWarning = overlapAnalysis.warningMessage
   }
 
   const canSubmit = !validationError && !submitting
@@ -134,7 +192,11 @@ export default function ApplyLeavePage() {
         return
       }
 
-      toast.success(`Leave application ${res.request.request_number} submitted! Routed to manager for review.`)
+      if (overlapWarning) {
+        toast.success(`Leave application ${res.request.request_number} submitted with overlap notice. Routed to manager for review.`)
+      } else {
+        toast.success(`Leave application ${res.request.request_number} submitted! Routed to manager for review.`)
+      }
       router.push('/employee/my-leaves')
     } catch (err: any) {
       toast.error(err?.message || 'An error occurred during submission.')
@@ -459,19 +521,44 @@ export default function ApplyLeavePage() {
                         <button
                           type="button"
                           onClick={() => {
-                            setStartDate(new Date(2026, 10, 24))
-                            setEndDate(new Date(2026, 10, 25))
+                            const nextDays = getNextAvailableWorkingDays()
+                            if (nextDays.length >= 2) {
+                              setStartDate(nextDays[0])
+                              setEndDate(nextDays[1])
+                            } else if (nextDays.length === 1) {
+                              setStartDate(nextDays[0])
+                              setEndDate(nextDays[0])
+                            }
                           }}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#D97706] hover:bg-[#B45309] text-white font-medium text-xs transition-colors shadow-xs cursor-pointer"
                         >
-                          <span>Switch to Working Days (Nov 24 – 25, 2026 · 2 Days)</span>
+                          <CalendarCheck className="h-3.5 w-3.5" />
+                          <span>Switch to Next Available Working Days</span>
                         </button>
                       </div>
                     )}
                   </div>
                 )}
 
-                {!validationError && startDate && endDate && (
+                {/* Overlap Notice Banner (Under WARN_AND_ALLOW Policy) */}
+                {overlapWarning && !validationError && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50/90 p-3.5 space-y-2 text-xs text-amber-900 shadow-xs">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="font-semibold text-xs text-amber-950">Overlapping Leave Notice (Policy: Warn & Allow)</p>
+                        <p className="leading-relaxed text-[11px] text-amber-800">{overlapWarning}</p>
+                      </div>
+                    </div>
+                    {overlapAnalysis && overlapAnalysis.conflictingWorkingDays.length > 0 && (
+                      <div className="pl-6.5 text-[10px] font-medium text-amber-700 bg-amber-100/70 rounded px-2 py-0.5 inline-block">
+                        Conflicting working day(s): {overlapAnalysis.conflictingWorkingDays.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!validationError && !overlapWarning && startDate && endDate && (
                   <div className="rounded-lg border border-[#BBF7D0] bg-[#DCFCE7] p-3 flex items-center gap-2.5 text-xs text-[#166534] font-medium">
                     <CheckCircle2 className="h-4 w-4 text-[#166534] shrink-0" />
                     <span>Application parameters verified and ready to submit.</span>

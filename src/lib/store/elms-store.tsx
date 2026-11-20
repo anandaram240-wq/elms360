@@ -138,6 +138,7 @@ export interface ElmsStoreState {
   holidays: HolidayRecord[]
   ledger: LedgerRecord[]
   weeklyOffDays: number[]
+  overlapPolicy: 'BLOCK' | 'WARN_AND_ALLOW' | 'ALLOW'
 }
 
 export interface ElmsStoreContextType {
@@ -152,6 +153,7 @@ export interface ElmsStoreContextType {
   holidays: HolidayRecord[]
   ledger: LedgerRecord[]
   weeklyOffDays: number[]
+  overlapPolicy: 'BLOCK' | 'WARN_AND_ALLOW' | 'ALLOW'
   isLoading: boolean
   dbError: string | null
   realtimeStatus: RealtimeConnectionStatus
@@ -174,12 +176,12 @@ export interface ElmsStoreContextType {
     emergencyContact?: string
   }) => Promise<{ success: boolean; error?: string; request?: LeaveRequestRecord }>
 
-  managerApprove: (requestId: string, comment?: string) => Promise<{ success: boolean; error?: string }>
+  managerApprove: (requestId: string, comment?: string, overrideJustification?: string) => Promise<{ success: boolean; error?: string; requiresOverride?: boolean }>
   managerReject: (requestId: string, reason: string) => Promise<{ success: boolean; error?: string }>
   managerRequestClarification: (requestId: string, question: string) => Promise<{ success: boolean; error?: string }>
   employeeReplyClarification: (requestId: string, reply: string) => Promise<{ success: boolean; error?: string }>
 
-  hrFinalApprove: (requestId: string, comment?: string) => Promise<{ success: boolean; error?: string }>
+  hrFinalApprove: (requestId: string, comment?: string, overrideJustification?: string) => Promise<{ success: boolean; error?: string; requiresOverride?: boolean }>
   hrReject: (requestId: string, reason: string) => Promise<{ success: boolean; error?: string }>
 
   withdrawLeave: (requestId: string) => Promise<{ success: boolean; error?: string }>
@@ -214,6 +216,7 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
   const [holidays, setHolidays] = useState<HolidayRecord[]>([])
   const [ledger, setLedger] = useState<LedgerRecord[]>([])
   const [weeklyOffDays, setWeeklyOffDays] = useState<number[]>([0, 6])
+  const [overlapPolicy, setOverlapPolicy] = useState<'BLOCK' | 'WARN_AND_ALLOW' | 'ALLOW'>('WARN_AND_ALLOW')
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [dbError, setDbError] = useState<string | null>(null)
 
@@ -239,6 +242,7 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
       setLedger(data.ledger || [])
       setNotifications(data.notifications || [])
       if (data.weeklyOffDays) setWeeklyOffDays(data.weeklyOffDays)
+      if (data.overlapPolicy) setOverlapPolicy(data.overlapPolicy)
 
       if (data.currentUser) {
         setCurrentUser(data.currentUser)
@@ -410,12 +414,13 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
 
   // Manager Actions
   const managerApprove = useCallback(
-    async (requestId: string, comment?: string) => {
+    async (requestId: string, comment?: string, overrideJustification?: string) => {
       try {
         await mutateBackend('manager_approve', {
           requestId,
           managerId: currentUser?.id,
           comments: comment,
+          overrideJustification,
         })
         return { success: true }
       } catch (err: any) {
@@ -475,12 +480,13 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
 
   // HR Actions
   const hrFinalApprove = useCallback(
-    async (requestId: string, comment?: string) => {
+    async (requestId: string, comment?: string, overrideJustification?: string) => {
       try {
         await mutateBackend('hr_approve', {
           requestId,
           hrId: currentUser?.id,
           comments: comment,
+          overrideJustification,
         })
         return { success: true }
       } catch (err: any) {
@@ -640,6 +646,7 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
       holidays,
       ledger,
       weeklyOffDays,
+      overlapPolicy,
     }),
     [
       employees,
@@ -651,6 +658,7 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
       holidays,
       ledger,
       weeklyOffDays,
+      overlapPolicy,
     ]
   )
 
@@ -667,6 +675,7 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
       holidays,
       ledger,
       weeklyOffDays,
+      overlapPolicy,
       isLoading,
       dbError,
       realtimeStatus,
@@ -708,6 +717,7 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
       holidays,
       ledger,
       weeklyOffDays,
+      overlapPolicy,
       isLoading,
       dbError,
       realtimeStatus,

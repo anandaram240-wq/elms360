@@ -1461,6 +1461,7 @@ export interface Database {
           leave_year_type: LeaveYearType
           max_pending_per_employee: number
           allow_concurrent_leaves: boolean
+          overlap_policy?: "BLOCK" | "WARN_AND_ALLOW" | "ALLOW" | null
           min_team_coverage_percent: number
           require_handover_notes: boolean
           auto_approve_after_days: number | null
@@ -1476,6 +1477,7 @@ export interface Database {
           leave_year_type?: LeaveYearType
           max_pending_per_employee?: number
           allow_concurrent_leaves?: boolean
+          overlap_policy?: "BLOCK" | "WARN_AND_ALLOW" | "ALLOW" | null
           min_team_coverage_percent?: number
           require_handover_notes?: boolean
           auto_approve_after_days?: number | null

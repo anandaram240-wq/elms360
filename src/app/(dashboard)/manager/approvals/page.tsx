@@ -64,6 +64,7 @@ export default function ManagerApprovalsPage() {
   const [clarifyQuestion, setClarifyQuestion] = React.useState('')
   const [approveComments, setApproveComments] = React.useState('')
   const [approveTargetId, setApproveTargetId] = React.useState<string | null>(null)
+  const [overrideJustification, setOverrideJustification] = React.useState('')
 
   // Queues
   const pendingRequests = state.leaveRequests.filter(
@@ -117,14 +118,38 @@ export default function ManagerApprovalsPage() {
     })
   }
 
+  // Same-employee overlap checker (Phase 5 Protection)
+  const getSameEmployeeOverlaps = (req: LeaveRequestRecord) => {
+    return state.leaveRequests.filter((other) => {
+      if (other.id === req.id) return false
+      if (other.employee_id !== req.employee_id) return false
+      if (other.status === 'REJECTED' || other.status === 'WITHDRAWN' || other.status === 'CANCELLED' || other.status === 'DRAFT') return false
+      return !(other.end_date < req.start_date || other.start_date > req.end_date)
+    })
+  }
+
   // Handle Approve
   const handleConfirmApprove = async () => {
     if (!approveTargetId) return
-    const res = await managerApprove(approveTargetId, approveComments.trim() || undefined)
+    const target = state.leaveRequests.find((r) => r.id === approveTargetId)
+    const empConflicts = target ? getSameEmployeeOverlaps(target) : []
+    const hasApproved = empConflicts.some((c) => c.status === 'APPROVED')
+
+    if (hasApproved && overrideJustification.trim().length < 5) {
+      toast.error('Please specify an authorized conflict override justification (minimum 5 characters) to approve overlapping approved dates.')
+      return
+    }
+
+    const res = await managerApprove(
+      approveTargetId,
+      approveComments.trim() || undefined,
+      hasApproved ? overrideJustification.trim() : undefined
+    )
     if (res.success) {
       toast.success('Leave request approved and routed to HR for final sign-off.')
       setApproveTargetId(null)
       setApproveComments('')
+      setOverrideJustification('')
     } else {
       toast.error(res.error || 'Failed to approve request')
     }
@@ -259,6 +284,8 @@ export default function ManagerApprovalsPage() {
               filteredData.map((req) => {
                 const isSelected = selectedRequestId === req.id
                 const overlaps = getOverlappingTeammates(req)
+                const sameEmpOverlaps = getSameEmployeeOverlaps(req)
+                const hasApprovedConflict = sameEmpOverlaps.some((o) => o.status === 'APPROVED')
 
                 return (
                   <div
@@ -289,12 +316,22 @@ export default function ManagerApprovalsPage() {
 
                     <div className="mt-1 flex items-center justify-between text-[11px] text-[#64748B]">
                       <span>{req.start_date} → {req.end_date}</span>
-                      {overlaps.length > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#92400E] bg-[#FEF3C7] px-1.5 py-0.5 rounded">
-                          <AlertTriangle className="h-3 w-3" />
-                          {overlaps.length} team conflict{overlaps.length > 1 ? 's' : ''}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {sameEmpOverlaps.length > 0 && (
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                            hasApprovedConflict ? 'text-[#991B1B] bg-[#FEE2E2]' : 'text-[#92400E] bg-[#FEF3C7]'
+                          }`}>
+                            <AlertTriangle className="h-3 w-3" />
+                            {hasApprovedConflict ? 'Approved Overlap' : 'Pending Overlap'}
+                          </span>
+                        )}
+                        {overlaps.length > 0 && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#92400E] bg-[#FEF3C7] px-1.5 py-0.5 rounded">
+                            <AlertTriangle className="h-3 w-3" />
+                            {overlaps.length} team
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )
@@ -402,6 +439,42 @@ export default function ManagerApprovalsPage() {
                   </div>
                 )}
 
+                {/* Same-Employee Overlap Conflicts Notice (Phase 5 Protection) */}
+                {(() => {
+                  const sameEmpConflicts = getSameEmployeeOverlaps(selectedRequest)
+                  if (sameEmpConflicts.length === 0) return null
+                  const hasApprovedConflict = sameEmpConflicts.some((c) => c.status === 'APPROVED')
+
+                  return (
+                    <div className="p-3.5 bg-amber-50/90 border border-amber-200 rounded-xl space-y-2 text-xs text-amber-900">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-xs text-amber-950">
+                            Employee Schedule Conflict ({sameEmpConflicts.length})
+                          </p>
+                          <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                            {hasApprovedConflict
+                              ? 'This employee already has an APPROVED leave request overlapping these dates. Approving will require an authorized conflict override.'
+                              : 'This employee has another active leave request overlapping these dates.'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-amber-200/60 rounded border border-amber-200/70 bg-white/80 text-[11px]">
+                        {sameEmpConflicts.map((c) => (
+                          <div key={c.id} className="p-2 flex items-center justify-between">
+                            <div>
+                              <span className="font-mono font-semibold">{c.request_number}</span>
+                              <span className="text-[#64748B] ml-2">{c.start_date} → {c.end_date} ({c.total_days}d)</span>
+                            </div>
+                            <LeaveStatusBadge status={c.status} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 {/* Decision Actions Bar */}
                 {selectedRequest.status === 'PENDING_MANAGER_APPROVAL' && (
                   <div className="pt-4 border-t border-[#E5E7EB] space-y-3">
@@ -468,6 +541,42 @@ export default function ManagerApprovalsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2 text-xs">
+              {(() => {
+                const target = state.leaveRequests.find((r) => r.id === approveTargetId)
+                const empConflicts = target ? getSameEmployeeOverlaps(target) : []
+                const hasApproved = empConflicts.some((c) => c.status === 'APPROVED')
+                const approvedReq = empConflicts.find((c) => c.status === 'APPROVED')
+
+                if (!hasApproved) return null
+
+                return (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-xs space-y-2">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-amber-950">Approved Conflict Override Required</p>
+                        <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                          Employee already has an approved request ({approvedReq?.request_number}: {approvedReq?.start_date} to {approvedReq?.end_date}).
+                          To proceed, an authorized conflict override justification is required.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-1 pt-1">
+                      <Label htmlFor="overrideJustification" className="text-[11px] font-semibold text-amber-950">
+                        Mandatory Override Justification <span className="text-red-600">*</span>
+                      </Label>
+                      <Input
+                        id="overrideJustification"
+                        value={overrideJustification}
+                        onChange={(e) => setOverrideJustification(e.target.value)}
+                        placeholder="e.g. Schedule adjustment authorized by department head"
+                        className="border-amber-300 text-xs h-8.5 bg-white"
+                      />
+                    </div>
+                  </div>
+                )
+              })()}
+
               <Label htmlFor="approveComment" className="font-semibold text-[#111827]">
                 Optional Approval Comment
               </Label>

@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { broadcastToEmployee, broadcastToEmployees } from '@/lib/realtime-broadcaster'
+import {
+  analyzeLeaveOverlap,
+  getWorkingDaysInRange,
+  type OverlapPolicy,
+  type LeaveRequestRecord,
+} from '@/lib/overlap-calculator'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,7 +68,7 @@ export async function POST(request: Request) {
       // 2. Fetch employee organization
       const { data: emp, error: empErr } = await admin
         .from('employees')
-        .select('organization_id')
+        .select('id, organization_id, full_name')
         .eq('id', actingEmpId)
         .single()
 
@@ -70,23 +76,70 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: 'Employee not found' }, { status: 404 })
       }
 
-      // 3. Check for overlapping active requests
-      const { data: overlapping } = await admin
-        .from('leave_requests')
-        .select('id, request_number, start_date, end_date')
-        .eq('employee_id', actingEmpId)
-        .not('status', 'in', '("REJECTED","WITHDRAWN","CANCELLED")')
-        .lte('start_date', endDate)
-        .gte('end_date', startDate)
+      // 3. Fetch org settings to determine overlap policy
+      const { data: orgSettings } = await admin
+        .from('organization_settings')
+        .select('*')
+        .eq('organization_id', emp.organization_id)
+        .limit(1)
+        .maybeSingle()
 
-      if (overlapping && overlapping.length > 0) {
+      const overlapPolicy: OverlapPolicy =
+        (orgSettings?.overlap_policy as OverlapPolicy) ||
+        (orgSettings?.allow_concurrent_leaves ? 'ALLOW' : 'WARN_AND_ALLOW')
+
+      // Fetch weekly off days and holidays for accurate working-day calculation
+      const { data: rawOrg } = await admin
+        .from('organizations')
+        .select('weekly_off_days')
+        .eq('id', emp.organization_id)
+        .limit(1)
+        .maybeSingle()
+      const weeklyOffDays = (rawOrg?.weekly_off_days as number[]) || [0, 6]
+
+      const { data: rawHolidays } = await admin
+        .from('holidays')
+        .select('holiday_date')
+      const holidayDates = (rawHolidays || []).map((h) => String(h.holiday_date))
+
+      // 4. Check for overlapping active requests strictly scoped to THIS employee
+      const { data: rawEmpRequests } = await admin
+        .from('leave_requests')
+        .select('id, request_number, employee_id, start_date, end_date, status, leave_types(name, code)')
+        .eq('employee_id', actingEmpId)
+        .not('status', 'in', '("REJECTED","WITHDRAWN","CANCELLED","DRAFT")')
+
+      const existingEmpRequests: LeaveRequestRecord[] = (rawEmpRequests || []).map((r: any) => ({
+        id: r.id,
+        request_number: r.request_number,
+        employee_id: r.employee_id,
+        start_date: String(r.start_date),
+        end_date: String(r.end_date),
+        status: r.status,
+        leave_type_name: r.leave_types?.name,
+        leave_type_code: r.leave_types?.code,
+      }))
+
+      const overlapAnalysis = analyzeLeaveOverlap({
+        employeeId: actingEmpId,
+        startDate,
+        endDate,
+        existingRequests: existingEmpRequests,
+        weeklyOffDays,
+        holidayDates,
+        policy: overlapPolicy,
+      })
+
+      // If policy is BLOCK and working-day overlap exists, reject submission
+      if (overlapAnalysis.hasWorkingDayOverlap && !overlapAnalysis.canSubmit) {
         return NextResponse.json({
           success: false,
-          error: `Overlapping leave request (${overlapping[0].request_number}) exists from ${overlapping[0].start_date} to ${overlapping[0].end_date}.`,
+          error: overlapAnalysis.blockingError || 'Leave request blocked due to existing overlap.',
+          conflicts: overlapAnalysis.conflicts,
         }, { status: 400 })
       }
 
-      // 4. Validate available balance
+      // 5. Validate available balance
       const currentYear = new Date(startDate).getFullYear()
       const { data: balance } = await admin
         .from('leave_balances')
@@ -104,7 +157,7 @@ export async function POST(request: Request) {
         }, { status: 400 })
       }
 
-      // 5. Insert DRAFT request into PostgreSQL
+      // 6. Insert DRAFT request into PostgreSQL
       const { data: inserted, error: insertErr } = await admin
         .from('leave_requests')
         .insert({
@@ -127,7 +180,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: insertErr?.message || 'Failed to insert request' }, { status: 500 })
       }
 
-      // 6. Execute atomic PostgreSQL submit_leave_request transaction
+      // 7. Execute atomic PostgreSQL submit_leave_request transaction
       const { data: submitRes, error: submitRpcErr } = await admin.rpc('submit_leave_request', {
         p_request_id: inserted.id,
         p_employee_id: actingEmpId,
@@ -137,8 +190,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: submitRpcErr.message }, { status: 500 })
       }
 
-      // 7. Broadcast realtime event to manager and employee
-      // Find the reporting manager for this employee
+      // 8. If an overlap warning exists, prepend note to manager notification
       const { data: reporting } = await admin
         .from('reporting_relationships')
         .select('manager_id')
@@ -148,16 +200,36 @@ export async function POST(request: Request) {
         .limit(1)
         .maybeSingle()
 
+      if (reporting?.manager_id && overlapAnalysis.hasWorkingDayOverlap) {
+        const conflictBrief = overlapAnalysis.conflicts
+          .map((c) => `${c.requestNumber} on ${c.commonWorkingDays.join(', ')}`)
+          .join('; ')
+
+        await admin
+          .from('notifications')
+          .insert({
+            organization_id: emp.organization_id,
+            recipient_id: reporting.manager_id,
+            sender_id: actingEmpId,
+            type: 'LEAVE_SCHEDULE_CONFLICT',
+            title: `Overlap Notice: ${inserted.request_number}`,
+            message: `${emp.full_name}'s leave request (${inserted.request_number}) overlaps on working days with existing request(s): ${conflictBrief}. Please review before approving.`,
+            leave_request_id: inserted.id,
+          })
+      }
+
       const broadcastPayload = {
         requestId: inserted.id,
         requestNumber: inserted.request_number,
+        hasOverlapWarning: overlapAnalysis.hasWorkingDayOverlap,
+        warningMessage: overlapAnalysis.warningMessage,
       }
 
       // Notify manager
       if (reporting?.manager_id) {
         await broadcastToEmployee(reporting.manager_id, 'LEAVE_REQUEST_SUBMITTED', broadcastPayload)
       }
-      // Confirm submission to employee (refresh their own view)
+      // Confirm submission to employee
       await broadcastToEmployee(actingEmpId, 'LEAVE_REQUEST_SUBMITTED', broadcastPayload)
 
       return NextResponse.json({
@@ -165,25 +237,89 @@ export async function POST(request: Request) {
         requestId: inserted.id,
         requestNumber: inserted.request_number,
         details: submitRes,
+        overlapWarning: overlapAnalysis.warningMessage,
+        conflicts: overlapAnalysis.conflicts,
       })
     }
 
     if (action === 'manager_approve') {
-      const { requestId, managerId, comments } = payload
+      const { requestId, managerId, comments, overrideJustification } = payload
       const actorId = managerId || activeUser?.id
+
+      // Overlap & Double Deduction Protection
+      const { data: targetReq } = await admin
+        .from('leave_requests')
+        .select('id, request_number, employee_id, organization_id, start_date, end_date, total_days, leave_type_id')
+        .eq('id', requestId)
+        .single()
+
+      if (targetReq) {
+        // Check for existing APPROVED requests for the SAME employee overlapping requested dates
+        const { data: approvedOverlaps } = await admin
+          .from('leave_requests')
+          .select('id, request_number, start_date, end_date, total_days, status, leave_type_id')
+          .eq('employee_id', targetReq.employee_id)
+          .eq('status', 'APPROVED')
+          .neq('id', requestId)
+          .lte('start_date', targetReq.end_date)
+          .gte('end_date', targetReq.start_date)
+
+        if (approvedOverlaps && approvedOverlaps.length > 0) {
+          // Check working day intersection
+          const { data: rawOrg } = await admin
+            .from('organizations')
+            .select('weekly_off_days')
+            .eq('id', targetReq.organization_id)
+            .limit(1)
+            .maybeSingle()
+          const weeklyOffDays = (rawOrg?.weekly_off_days as number[]) || [0, 6]
+
+          const { data: rawHolidays } = await admin
+            .from('holidays')
+            .select('holiday_date')
+          const holidayDates = (rawHolidays || []).map((h) => String(h.holiday_date))
+
+          const targetDays = getWorkingDaysInRange(targetReq.start_date, targetReq.end_date, weeklyOffDays, holidayDates)
+          const conflictingApprovedDays: string[] = []
+
+          for (const app of approvedOverlaps) {
+            const appDays = getWorkingDaysInRange(app.start_date, app.end_date, weeklyOffDays, holidayDates)
+            targetDays.forEach((d) => {
+              if (appDays.includes(d) && !conflictingApprovedDays.includes(d)) {
+                conflictingApprovedDays.push(d)
+              }
+            })
+          }
+
+          if (conflictingApprovedDays.length > 0) {
+            if (!overrideJustification || overrideJustification.trim().length < 5) {
+              return NextResponse.json({
+                success: false,
+                requiresOverride: true,
+                error: `Approval conflict: Date(s) ${conflictingApprovedDays.join(', ')} are already approved under ${approvedOverlaps[0].request_number}. An authorized conflict override justification (minimum 5 characters) is required to approve.`,
+                conflictingRequest: approvedOverlaps[0].request_number,
+                conflictingDates: conflictingApprovedDays,
+              }, { status: 409 })
+            }
+          }
+        }
+      }
+
+      const finalComments = overrideJustification
+        ? `${comments || 'Approved by Manager'} [AUTHORIZED CONFLICT OVERRIDE: ${overrideJustification.trim()}]`
+        : comments || 'Approved by Manager'
 
       const { data, error } = await admin.rpc('process_approval_action', {
         p_request_id: requestId,
         p_actor_id: actorId,
         p_action: 'APPROVED',
-        p_comments: comments || 'Approved by Manager',
+        p_comments: finalComments,
       })
 
       if (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 400 })
       }
 
-      // Broadcast to employee and find HR users to notify
       await _broadcastApprovalEvent(admin, requestId, actorId, 'LEAVE_APPROVED')
 
       return NextResponse.json({ success: true, data })
@@ -230,14 +366,75 @@ export async function POST(request: Request) {
     }
 
     if (action === 'hr_approve') {
-      const { requestId, hrId, comments } = payload
+      const { requestId, hrId, comments, overrideJustification } = payload
       const actorId = hrId || activeUser?.id
+
+      // Check for approved conflict override if approving overlapping dates
+      const { data: targetReq } = await admin
+        .from('leave_requests')
+        .select('id, request_number, employee_id, organization_id, start_date, end_date, total_days, leave_type_id')
+        .eq('id', requestId)
+        .single()
+
+      if (targetReq) {
+        const { data: approvedOverlaps } = await admin
+          .from('leave_requests')
+          .select('id, request_number, start_date, end_date, total_days, status, leave_type_id')
+          .eq('employee_id', targetReq.employee_id)
+          .eq('status', 'APPROVED')
+          .neq('id', requestId)
+          .lte('start_date', targetReq.end_date)
+          .gte('end_date', targetReq.start_date)
+
+        if (approvedOverlaps && approvedOverlaps.length > 0) {
+          const { data: rawOrg } = await admin
+            .from('organizations')
+            .select('weekly_off_days')
+            .eq('id', targetReq.organization_id)
+            .limit(1)
+            .maybeSingle()
+          const weeklyOffDays = (rawOrg?.weekly_off_days as number[]) || [0, 6]
+
+          const { data: rawHolidays } = await admin
+            .from('holidays')
+            .select('holiday_date')
+          const holidayDates = (rawHolidays || []).map((h) => String(h.holiday_date))
+
+          const targetDays = getWorkingDaysInRange(targetReq.start_date, targetReq.end_date, weeklyOffDays, holidayDates)
+          const conflictingApprovedDays: string[] = []
+
+          for (const app of approvedOverlaps) {
+            const appDays = getWorkingDaysInRange(app.start_date, app.end_date, weeklyOffDays, holidayDates)
+            targetDays.forEach((d) => {
+              if (appDays.includes(d) && !conflictingApprovedDays.includes(d)) {
+                conflictingApprovedDays.push(d)
+              }
+            })
+          }
+
+          if (conflictingApprovedDays.length > 0) {
+            if (!overrideJustification || overrideJustification.trim().length < 5) {
+              return NextResponse.json({
+                success: false,
+                requiresOverride: true,
+                error: `Approval conflict: Date(s) ${conflictingApprovedDays.join(', ')} are already approved under ${approvedOverlaps[0].request_number}. An authorized conflict override justification (minimum 5 characters) is required for final sign-off.`,
+                conflictingRequest: approvedOverlaps[0].request_number,
+                conflictingDates: conflictingApprovedDays,
+              }, { status: 409 })
+            }
+          }
+        }
+      }
+
+      const finalComments = overrideJustification
+        ? `${comments || 'Final approval by HR'} [AUTHORIZED CONFLICT OVERRIDE: ${overrideJustification.trim()}]`
+        : comments || 'Final approval by HR'
 
       const { data, error } = await admin.rpc('process_approval_action', {
         p_request_id: requestId,
         p_actor_id: actorId,
         p_action: 'APPROVED',
-        p_comments: comments || 'Final approval by HR',
+        p_comments: finalComments,
       })
 
       if (error) {
@@ -293,7 +490,6 @@ export async function POST(request: Request) {
       const { requestId, actorId, comments } = payload
       const currentActor = actorId || activeUser?.id
 
-      // First request cancellation if not already
       await admin
         .from('leave_requests')
         .update({ status: 'CANCELLATION_REQUESTED', cancellation_reason: comments })
@@ -330,7 +526,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: error.message }, { status: 400 })
       }
 
-      // Notify the manager about the reply
       await _broadcastApprovalEvent(admin, requestId, actorId, 'STORE_REFRESH')
 
       return NextResponse.json({ success: true, data })
@@ -347,7 +542,7 @@ export async function POST(request: Request) {
  * After an approval action, broadcast a refresh event to:
  * - The employee who owns the leave request
  * - The manager (current_approver_id if still pending, or the actor)
- * - Any HR users in the same organization (for manager approvals forwarding to HR)
+ * - Any HR users in the same organization
  */
 async function _broadcastApprovalEvent(
   admin: ReturnType<typeof createAdminClient>,
@@ -367,37 +562,32 @@ async function _broadcastApprovalEvent(
     const broadcastPayload = { requestId: lr.id, requestNumber: lr.request_number }
     const recipientIds = new Set<string>()
 
-    // Always notify the leave owner
     if (lr.employee_id) recipientIds.add(lr.employee_id)
-
-    // Notify the actor (manager or HR performing the action)
     if (actorId) recipientIds.add(actorId)
-
-    // If there is a next approver (e.g. HR after manager approval), notify them too
     if (lr.current_approver_id && lr.current_approver_id !== actorId) {
       recipientIds.add(lr.current_approver_id)
     }
 
-    // If the new status is PENDING_HR_APPROVAL, also broadcast to all active HR_ADMIN employees
-    // in the same org so HR dashboards auto-refresh
-    if (lr.status === 'PENDING_HR_APPROVAL') {
-      const { data: hrEmps } = await admin
-        .from('employees')
-        .select('id, employee_role_assignments!employee_role_assignments_employee_id_fkey(is_active, roles(code))')
-        .eq('organization_id', lr.organization_id)
+    // Broadcast to HR Admins if status changed
+    if (lr.organization_id) {
+      const { data: hrStaff } = await admin
+        .from('employee_role_assignments')
+        .select('employee_id, roles!inner(code)')
+        .eq('roles.code', 'HR_ADMIN')
         .eq('is_active', true)
 
-      for (const emp of hrEmps ?? []) {
-        const assignments = (emp as any).employee_role_assignments ?? []
-        const isHR = assignments.some(
-          (a: any) => a.is_active !== false && (a.roles?.code === 'HR_ADMIN' || a.roles?.code === 'SUPER_ADMIN')
-        )
-        if (isHR) recipientIds.add(emp.id)
+      if (hrStaff) {
+        hrStaff.forEach((h: any) => {
+          if (h.employee_id) recipientIds.add(h.employee_id)
+        })
       }
     }
 
-    await broadcastToEmployees(Array.from(recipientIds), eventType, broadcastPayload)
+    const recipients = Array.from(recipientIds)
+    if (recipients.length > 0) {
+      await broadcastToEmployees(recipients, eventType, broadcastPayload)
+    }
   } catch (err) {
-    console.warn('[REALTIME] _broadcastApprovalEvent error (non-fatal):', err)
+    console.warn('[BROADCAST_APPROVAL_NOTE]', err)
   }
 }

@@ -985,6 +985,24 @@ export async function getLeaveRequestDetail(requestId: string) {
     .lte('start_date', request.end_date)
     .gte('end_date', request.start_date)
 
+  // Fetch same-employee overlapping requests (Phase 5 requirement)
+  const { data: sameEmpOverlaps } = await admin
+    .from('leave_requests')
+    .select(`
+      id,
+      request_number,
+      start_date,
+      end_date,
+      total_days,
+      status,
+      leave_types(name, color)
+    `)
+    .eq('employee_id', request.employee_id)
+    .neq('id', requestId)
+    .not('status', 'in', '("REJECTED","WITHDRAWN","CANCELLED","DRAFT")')
+    .lte('start_date', request.end_date)
+    .gte('end_date', request.start_date)
+
   return {
     request: {
       ...request,
@@ -1019,6 +1037,20 @@ export async function getLeaveRequestDetail(requestId: string) {
         startDate: o.start_date,
         endDate: o.end_date,
         status: o.status,
+      }
+    }),
+    sameEmployeeOverlaps: (sameEmpOverlaps || []).map((o) => {
+      const t = o.leave_types as unknown as { name: string; color: string } | null
+      return {
+        id: o.id,
+        requestNumber: o.request_number,
+        leaveTypeName: t?.name || 'Leave',
+        color: t?.color || '#3b82f6',
+        startDate: o.start_date,
+        endDate: o.end_date,
+        totalDays: Number(o.total_days || 1),
+        status: o.status,
+        isAlreadyApproved: o.status === 'APPROVED',
       }
     }),
   }
