@@ -70,7 +70,7 @@ export const ROLE_NAVIGATION: Record<Role, NavItem[]> = {
     { title: "Team Members", href: "/manager/team", icon: Users },
     { title: "Team Calendar", href: "/manager/team-calendar", icon: CalendarRange },
     { title: "Delegations", href: "/manager/delegations", icon: UserCheck },
-    { title: "Notifications", href: "/employee/notifications", icon: Bell },
+    { title: "Notifications", href: "/manager/notifications", icon: Bell },
   ],
   HR: [
     { title: "Overview", href: "/hr/dashboard", icon: LayoutDashboard },
@@ -90,7 +90,7 @@ export const ROLE_NAVIGATION: Record<Role, NavItem[]> = {
     { title: "Roles", href: "/admin/roles", icon: ShieldCheck },
     { title: "Permissions", href: "/admin/permissions", icon: Key },
     { title: "Security", href: "/admin/security", icon: Lock },
-    { title: "Audit Logs", href: "/hr/audit-logs", icon: FileText },
+    { title: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
     { title: "System Settings", href: "/admin/system-settings", icon: Settings },
   ],
 };

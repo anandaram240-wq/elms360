@@ -93,24 +93,22 @@ export default function ApplyLeavePage() {
   }, [state.leaveRequests, employeeId, startDateStr, endDateStr])
 
   // Validation
-  const validationError = React.useMemo(() => {
-    if (!leaveTypeId) return 'Please select a leave category.'
-    if (!startDate || !endDate) return 'Please select both start and end dates.'
-    if (endDateStr < startDateStr) return 'End date cannot be earlier than start date.'
-    if (durationResult && durationResult.workingDays <= 0) {
-      return 'The selected dates contain 0 working days (weekends or holidays are automatically exempted by policy).'
-    }
-    if (selectedType?.code !== 'UPL' && workingDays > availableDays) {
-      return `Insufficient leave balance (${availableDays} days available, but requested ${workingDays} days).`
-    }
-    if (overlapConflict) {
-      return `Overlaps with existing leave request (${overlapConflict.request_number}: ${overlapConflict.start_date} to ${overlapConflict.end_date}).`
-    }
-    if (reason.trim().length < 3) {
-      return 'Please enter a reason for your leave (minimum 3 characters).'
-    }
-    return null
-  }, [leaveTypeId, startDate, endDate, endDateStr, startDateStr, durationResult, selectedType, workingDays, availableDays, overlapConflict, reason])
+  let validationError: string | null = null
+  if (!leaveTypeId) {
+    validationError = 'Please select a leave category.'
+  } else if (!startDate || !endDate) {
+    validationError = 'Please select both start and end dates.'
+  } else if (endDateStr < startDateStr) {
+    validationError = 'End date cannot be earlier than start date.'
+  } else if (durationResult && durationResult.workingDays <= 0) {
+    validationError = 'The selected dates contain 0 working days (weekends or holidays are automatically exempted by policy).'
+  } else if (selectedType?.code !== 'UPL' && workingDays > availableDays) {
+    validationError = `Insufficient leave balance (${availableDays} days available, but requested ${workingDays} days).`
+  } else if (overlapConflict) {
+    validationError = `Overlaps with existing leave request (${overlapConflict.request_number}: ${overlapConflict.start_date} to ${overlapConflict.end_date}).`
+  } else if (reason.trim().length < 3) {
+    validationError = 'Please enter a reason for your leave (minimum 3 characters).'
+  }
 
   const canSubmit = !validationError && !submitting
 

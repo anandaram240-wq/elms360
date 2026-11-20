@@ -71,6 +71,7 @@ export function useElmsRealtime({
   const retryCountRef = useRef(0)
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isMountedRef = useRef(true)
+  const scheduleRetryRef = useRef<() => void>(() => {})
 
   // Keep the callback ref fresh without re-creating the subscription
   useEffect(() => {
@@ -131,15 +132,15 @@ export function useElmsRealtime({
         } else if (status === 'CHANNEL_ERROR') {
           setConnectionStatus('CHANNEL_ERROR')
           console.warn('[REALTIME] Channel error:', err?.message)
-          scheduleRetry()
+          scheduleRetryRef.current()
         } else if (status === 'TIMED_OUT') {
           setConnectionStatus('TIMED_OUT')
-          scheduleRetry()
+          scheduleRetryRef.current()
         }
       })
 
     channelRef.current = channel
-  }, [employeeId, enabled, cleanup]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [employeeId, enabled, cleanup])
 
   const scheduleRetry = useCallback(() => {
     retryCountRef.current++
@@ -155,6 +156,8 @@ export function useElmsRealtime({
       }
     }, backoffMs)
   }, [connect])
+
+  scheduleRetryRef.current = scheduleRetry
 
   const reconnect = useCallback(() => {
     retryCountRef.current = 0

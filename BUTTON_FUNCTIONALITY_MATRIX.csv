@@ -1,90 +1,51 @@
-Page,Role,Component,Control,Expected,Implementation,DB,Test,Result
-/login,All,LoginForm,Sign In Button,Authenticate with email and password,handleSubmit / signInWithPassword,auth.users & profiles query,unit & curl,PASS
-/login,Super Admin,LoginForm,Quick Demo Super Admin,Instant login as Super Admin,handleQuickLogin(super_admin),auth.users & profiles query,unit & curl,PASS
-/login,HR Admin,LoginForm,Quick Demo HR Admin,Instant login as HR Admin,handleQuickLogin(hr_admin),auth.users & profiles query,unit & curl,PASS
-/login,Manager,LoginForm,Quick Demo Manager,Instant login as Manager,handleQuickLogin(manager),auth.users & profiles query,unit & curl,PASS
-/login,Employee,LoginForm,Quick Demo Employee,Instant login as Employee,handleQuickLogin(employee),auth.users & profiles query,unit & curl,PASS
-/login,All,LoginForm,Forgot Password Link,Navigate to reset request,"Link href=""/forgot-password""",None,unit & curl,PASS
-/*,All,Header,Sign Out Menu Item,Terminate session and redirect,"signOut() / router.push(""/login"")",auth.signOut() session termination,unit & curl,PASS
-/*,All,Sidebar,Sign Out Icon Button,Terminate session and redirect,"signOut() / router.push(""/login"")",auth.signOut() session termination,unit & curl,PASS
-/*,All,Sidebar,Profile Avatar & Info,Navigate to employee profile,"Link href=""/employee/profile""",None,unit & curl,PASS
-/*,All,Header,Notification Bell Button,Open slide-out notifications panel,setIsNotificationsOpen(true),realtime notifications query,unit & curl,PASS
-/employee/dashboard,Employee,EmployeeDashboardPage,Apply for Leave Button,Navigate to leave application form,"Button asChild Link href=""/employee/apply-leave""",None,browser & curl,PASS
-/employee/dashboard,Employee,EmployeeDashboardPage,Details Button (Recent Leaves),Navigate to leave request details,"Button asChild Link href=""/employee/my-leaves/[id]""",leave_requests fetch,browser & curl,PASS
-/employee/apply-leave,Employee,ApplyLeaveClient,Leave Type Selector,Select leave policy & calculate balance,onValueChange={setSelectedLeaveTypeId},leave_types & leave_balances fetch,automated & form test,PASS
-/employee/apply-leave,Employee,ApplyLeaveClient,Start / End Date Pickers,Calculate working days excluding weekends/holidays,calculateWorkingDays(),holidays table query,automated date calculation,PASS
-/employee/apply-leave,Employee,ApplyLeaveClient,Half Day Checkbox,Toggle half day (0.5 days),setIsHalfDay / setHalfDayPeriod,None,automated date calculation,PASS
-/employee/apply-leave,Employee,ApplyLeaveClient,File Upload Dropzone,Stage medical/supporting certificate,handleFileSelect / Supabase Storage,Supabase Storage bucket upload,unit upload validator,PASS
-/employee/apply-leave,Employee,ApplyLeaveClient,Submit Leave Request Button,Persist leave request to PostgreSQL,submitLeaveRequest() Server Action,leave_requests insert & approval stage,unit & workflow test,PASS
-/employee/my-leaves,Employee,MyLeavesClient,Search Request Input,Filter table by request # or reason,setSearch(e.target.value),Client filter over fetched requests,unit table filter,PASS
-/employee/my-leaves,Employee,MyLeavesClient,Leave Type Filter Dropdown,Filter table by leave category,setTypeFilter(val),Client filter,unit table filter,PASS
-/employee/my-leaves,Employee,MyLeavesClient,Status Filter Dropdown,Filter table by approval status,setStatusFilter(val),Client filter,unit table filter,PASS
-/employee/my-leaves,Employee,MyLeavesClient,View Eye Button,Navigate to request details,router.push(`/employee/my-leaves/${id}`),None,browser navigation,PASS
-/employee/my-leaves,Employee,MyLeavesClient,Withdraw Button,Withdraw pending leave application,handleConfirmWithdraw / withdrawLeaveRequest(),leave_requests update status WITHDRAWN,workflow test,PASS
-/employee/my-leaves,Employee,MyLeavesClient,Cancel Request Button,Request cancellation of approved leave,handleConfirmCancellation / requestCancellation(),leave_requests update status CANCELLATION_REQUESTED,workflow test,PASS
-/employee/leave-calendar,Employee,LeaveCalendarPage,Export ICS Button,Generate & download .ics calendar file,handleDownloadICS / generateICSFile(),Client blob generation,ICS generator unit test,PASS
-/employee/leave-calendar,Employee,LeaveCalendarPage,Month/Week View Toggle,Switch calendar view interval,"setViewMode(""month"" | ""week"")",None,component state test,PASS
-/employee/leave-calendar,Employee,LeaveCalendarPage,Prev / Next / Today Buttons,Navigate calendar months,handlePrev / handleNext / handleToday,None,component state test,PASS
-/employee/leave-balance,Employee,LeaveBalancePage,Fiscal Year Selector,Switch balance fiscal year,setSelectedYear(val),leave_balances query by year,query test,PASS
-/employee/leave-balance,Employee,LeaveBalancePage,Apply Leave Header Button,Navigate to leave application,"Button asChild Link href=""/employee/apply-leave""",None,browser navigation,PASS
-/employee/leave-balance,Employee,LeaveBalancePage,View Policy Details Button,Open leave entitlement & rules dialog,handleViewPolicy(id),leave_types query,modal test,PASS
-/employee/notifications,Employee,NotificationsPage,Mark All Read Button,Update unread notifications to read,handleMarkAllRead() / markAllNotificationsAsRead(),notifications update is_read = true,workflow test,PASS
-/employee/notifications,Employee,NotificationsPage,Filter Tabs (All/Unread),Filter notifications list,"setFilter(""all"" | ""unread"")",None,component filter test,PASS
-/employee/notifications,Employee,NotificationsPage,Pagination Prev / Next,Page through notification history,setPage(p => p - 1 / + 1),Client pagination,component state test,PASS
-/employee/profile,Employee,ProfilePage,Save Contact Info Button,Persist personal email & phone,handleSaveContact() / updateEmployeeProfile(),"employees update personal_email, phone",mutation test,PASS
-/employee/profile,Employee,ProfilePage,Change Password Button,Update password in Supabase Auth,handleChangePassword() / updateUserPassword(),auth.updateUser({ password }),auth test,PASS
-/manager/dashboard,Manager,ManagerDashboardPage,Review Approvals Header Button,Navigate to approval queue,"Button asChild Link href=""/manager/approvals""",None,browser navigation,PASS
-/manager/dashboard,Manager,ManagerDashboardPage,Team Calendar Header Button,Navigate to team calendar,"Button asChild Link href=""/manager/team-calendar""",None,browser navigation,PASS
-/manager/dashboard,Manager,ManagerDashboardPage,Quick Actions: Approval Queue,Navigate to pending approvals,"Button asChild Link href=""/manager/approvals""",None,browser navigation,PASS
-/manager/dashboard,Manager,ManagerDashboardPage,Quick Actions: Team Directory,Navigate to direct reports directory,"Button asChild Link href=""/manager/team""",None,browser navigation,PASS
-/manager/dashboard,Manager,ManagerDashboardPage,Quick Actions: Approval Delegations,Navigate to delegation manager,"Button asChild Link href=""/manager/delegations""",None,browser navigation,PASS
-/manager/approvals,Manager,ManagerApprovalsPage,Approve Button (Row),Open approval confirmation dialog,"handleOpenAction(req, ""APPROVE"")",None (modal trigger),dialog test,PASS
-/manager/approvals,Manager,ManagerApprovalsPage,Confirm Approve Action,Execute server approval transition,approveRequest() Server Action,leave_requests update status & workflow log,approval workflow test,PASS
-/manager/approvals,Manager,ManagerApprovalsPage,Reject Button (Row),Open rejection dialog with reason requirement,"handleOpenAction(req, ""REJECT"")",None (modal trigger),dialog test,PASS
-/manager/approvals,Manager,ManagerApprovalsPage,Confirm Reject Action,Persist rejection decision with reason,rejectRequest() Server Action,leave_requests update REJECTED & audit log,rejection workflow test,PASS
-/manager/approvals,Manager,ManagerApprovalsPage,Request Clarification Button,Open clarification query dialog,"handleOpenAction(req, ""CLARIFY"")",None (modal trigger),dialog test,PASS
-/manager/approvals,Manager,ManagerApprovalsPage,Confirm Clarification Action,Transition status to CLARIFICATION_REQUESTED,requestClarification() Server Action,leave_requests update status & notification,clarification workflow test,PASS
-/manager/approvals,Manager,ManagerApprovalsPage,Bulk Approve Button,Approve all selected requests at once,bulkApproveRequests() Server Action,leave_requests batch update,batch approval test,PASS
-/manager/approvals,Manager,ManagerApprovalsPage,View Details Button,Navigate to request approval detail view,"Button asChild Link href=""/manager/approvals/[id]""",None,browser navigation,PASS
-/manager/team-calendar,Manager,TeamCalendarPage,Team Member Filter Dropdown,Filter calendar to single employee,setSelectedEmployeeId(val),Client filter,calendar filter test,PASS
-/manager/delegations,Manager,DelegationsPage,New Delegation Button,Open delegation creator dialog,setIsCreateOpen(true),None (dialog trigger),dialog test,PASS
-/manager/delegations,Manager,DelegationsPage,Create Delegation Form Submit,Persist approval delegation to colleague,createDelegation() Server Action,approval_delegations insert,mutation test,PASS
-/manager/delegations,Manager,DelegationsPage,Revoke Delegation Button,Revoke active delegation immediately,revokeDelegation() Server Action,approval_delegations update is_active = false,mutation test,PASS
-/manager/history,Manager,ApprovalHistoryPage,Search History Input,Filter past approval log by name/request,setSearch(val),Client filter,filter test,PASS
-/manager/history,Manager,ApprovalHistoryPage,Action Filter Dropdown,Filter by APPROVED / REJECTED,setActionFilter(val),Client filter,filter test,PASS
-/hr/dashboard,HR Admin,HRDashboardPage,Leave Requests Quick Link,Navigate to organization leave requests,"Link href=""/hr/leave-requests""",None,browser navigation,PASS
-/hr/dashboard,HR Admin,HRDashboardPage,Add Employee Quick Link,Navigate to employee onboarding form,"Link href=""/hr/employees/new""",None,browser navigation,PASS
-/hr/employees,HR Admin,HREmployeesPage,Export CSV Button,Download complete employee roster CSV,handleExportCSV(),employees table fetch,CSV generator test,PASS
-/hr/employees,HR Admin,HREmployeesPage,Import CSV Button,Open bulk CSV employee onboarding modal,setImportModalOpen(true),None (modal trigger),modal test,PASS
-/hr/employees,HR Admin,HREmployeesPage,Add Employee Button,Navigate to employee creation form,"Button asChild Link href=""/hr/employees/new""",None,browser navigation,PASS
-/hr/employees,HR Admin,HREmployeesPage,Employee Action Dropdown: Edit,Navigate to employee editor,"Link href=""/hr/employees/[id]""",None,browser navigation,PASS
-/hr/employees,HR Admin,HREmployeesPage,Employee Action Dropdown: Deactivate,Deactivate employee record,handleDeactivateEmployee() / deactivateEmployee(),employees update is_active = false,mutation test,PASS
-/hr/leave-requests,HR Admin,HRLeaveRequestsPage,Export Results (CSV) Button,Download filtered leave requests CSV,handleExportCSV(),leave_requests fetch,CSV generator test,PASS
-/hr/leave-requests,HR Admin,HRLeaveRequestsPage,Department / Type / Status Filters,Filter organization-wide leave requests,"setDeptFilter, setTypeFilter, setStatusFilter",Client filter,table filter test,PASS
-/hr/leave-requests/[id],HR Admin,HRLeaveRequestDetailPage,HR Approve Button,Execute final HR approval & debit balance,handleApprove() / hrApproveLeaveRequest(),leave_requests update APPROVED & balances debit,HR approval workflow test,PASS
-/hr/leave-requests/[id],HR Admin,HRLeaveRequestDetailPage,HR Reject Button,Reject request with documented mandatory reason,handleReject() / hrRejectLeaveRequest(),leave_requests update REJECTED & audit log,HR rejection workflow test,PASS
-/hr/leave-balances,HR Admin,HRLeaveBalancesPage,Manual Adjustment Button,Open credit/debit adjustment modal,setAdjustModalOpen(true),None (modal trigger),modal test,PASS
-/hr/leave-balances,HR Admin,HRLeaveBalancesPage,Save Adjustment Form,Record manual ledger adjustment & update balance,handleSaveAdjustment / adjustLeaveBalance(),leave_ledger insert & leave_balances update,ledger transaction test,PASS
-/hr/holidays,HR Admin,HRHolidaysPage,Add Holiday Button,Open holiday creation modal,setIsCreateOpen(true),None (modal trigger),modal test,PASS
-/hr/holidays,HR Admin,HRHolidaysPage,Save Holiday Form,Persist new statutory/company holiday,createHoliday() Server Action,holidays table insert,mutation test,PASS
-/hr/holidays,HR Admin,HRHolidaysPage,Delete Holiday Button,Delete company holiday with confirmation,deleteHoliday() Server Action,holidays table delete,deletion test,PASS
-/hr/leave-policies,HR Admin,HRLeavePoliciesPage,New Policy Button,Open leave policy configuration editor,setIsCreateOpen(true),None (modal trigger),modal test,PASS
-/hr/leave-policies,HR Admin,HRLeavePoliciesPage,Save Policy Form,Persist leave policy rules & versioning,savePolicy() Server Action,leave_policies insert/update,policy mutation test,PASS
-/hr/reports,HR Admin,HRReportsPage,Export Report (CSV) Button,Download report data based on active tab,handleExportTabCSV(),Computed metrics data export,CSV report generator test,PASS
-/hr/reports,HR Admin,HRReportsPage,Print View Button,Trigger browser print/PDF generation,window.print(),Browser native print engine,native window.print,PASS
-/hr/reports,HR Admin,HRReportsPage,Report Category Tabs,"Switch between utilization, monthly, SLAs, liability",setActiveTab(val),None,tabs state test,PASS
-/hr/audit-logs,HR Admin,HRAuditLogsPage,Filter Action Types Selector,Filter audit records by event category,setActionFilter(val),Client filter over audit logs,filter test,PASS
-/admin/dashboard,Super Admin,AdminDashboardPage,Organizations Quick Link,Navigate to organization settings,"Button asChild Link href=""/admin/organizations""",None,browser navigation,PASS
-/admin/dashboard,Super Admin,AdminDashboardPage,Security Settings Quick Link,Navigate to security configuration,"Button asChild Link href=""/admin/security""",None,browser navigation,PASS
-/admin/organizations,Super Admin,AdminOrganizationsPage,Save Organization Config Button,"Persist organization timezone, fiscal year, weekends",updateAdminOrganization() Server Action,organizations update settings,organization mutation test,PASS
-/admin/security,Super Admin,AdminSecurityPage,Save Security Config Button,"Persist MFA, password rules, session timeouts",updateSecuritySettings() Server Action,organizations update security_settings,security policy mutation test,PASS
-/admin/users,Super Admin,AdminUsersPage,Role Filters (All/Roles),Filter user management list by role,setRoleFilter(val),Client filter,filter test,PASS
-/admin/users,Super Admin,AdminUsersPage,Edit Roles Button,Open role assignment modal,openRoleModal(user),None (modal trigger),modal test,PASS
-/admin/users,Super Admin,AdminUsersPage,Save Roles Modal Button,Update assigned roles in Supabase user_roles,handleSaveRoles / assignUserRoles(),user_roles delete & batch insert,role assignment test,PASS
-/admin/users,Super Admin,AdminUsersPage,Reset Password Button,Send password reset instruction email,handleResetPassword() / adminResetPassword(),auth.admin.resetPasswordForEmail,auth admin test,PASS
-/admin/roles,Super Admin,AdminRolesPage,New Role Button,Open custom role creation modal,setIsCreateOpen(true),None (modal trigger),modal test,PASS
-/admin/roles,Super Admin,AdminRolesPage,Create Role Form Submit,Persist new custom application role,handleCreateRole / createRole(),roles table insert,role creation test,PASS
-/admin/roles,Super Admin,AdminRolesPage,View Permissions Matrix Button,Navigate to fine-grained permissions grid,"Button asChild Link href=""/admin/permissions""",None,browser navigation,PASS
-/admin/permissions,Super Admin,AdminPermissionsPage,Search Permissions Input,Filter permissions matrix by scope/keyword,setSearch(val),Client filter,filter test,PASS
-/admin/permissions,Super Admin,AdminPermissionsPage,Toggle Permission Checkbox,Grant or revoke permission for role in real-time,togglePermission() Server Action,role_permissions insert/delete,permission toggle test,PASS
-/admin/system-settings,Super Admin,AdminSystemSettingsPage,Save System Config Button,Persist global notifications & feature switches,handleSave / updateSystemSettings(),system_settings update,system settings mutation test,PASS
+Route,Role,Component,Label,Expected Action,Actual Handler,API or Server Action,Database Mutation,Test Result
+/employee/apply-leave,EMPLOYEE,ApplyLeavePage,Submit Leave Application,Submit valid leave application to manager queue,handleSubmit,submitLeave -> /api/store/mutate (submit_leave),INSERT leave_requests + submit_leave_request RPC + leave_balances reservation,PASS
+/employee/apply-leave,EMPLOYEE,ApplyLeavePage,Day Schedule (Full/Half AM/PM),Toggle day schedule type,setDayType,Local state + calculateDuration,Client preview calculation,PASS
+/employee/apply-leave,EMPLOYEE,ApplyLeavePage,Switch to Working Days,Quick-switch date range to valid working days,setStartDate/setEndDate,calculateDuration,Client date state update,PASS
+/employee/my-leaves,EMPLOYEE,MyLeavesPage,Withdraw Application,Withdraw eligible pending leave request,handleWithdraw,withdrawLeave -> /api/store/mutate (withdraw),process_approval_action(WITHDRAWN) + balance release,PASS
+/employee/my-leaves,EMPLOYEE,MyLeavesPage,Request Cancellation,Request cancellation of approved leave,handleCancelApproved,cancelApprovedLeave -> /api/store/mutate (cancel_approved),process_approval_action(CANCELLATION_APPROVED) + ledger reversal,PASS
+/employee/my-leaves,EMPLOYEE,MyLeavesPage,View Details,Navigate to individual leave detail view,Link / router.push,/employee/my-leaves/[id],None (read),PASS
+/employee/notifications,EMPLOYEE,NotificationsPage,Mark as Read,Mark single notification as read,handleMarkAsRead,markNotificationAsRead,UPDATE notifications SET is_read=true,PASS
+/employee/notifications,EMPLOYEE,NotificationsPage,Mark All as Read,Mark all employee notifications as read,handleMarkAllRead,markAllNotificationsAsRead,UPDATE notifications SET is_read=true WHERE recipient_id=user.id,PASS
+/employee/notifications,EMPLOYEE,NotificationsPage,Delete Notification,Delete notification from employee feed,handleDelete,deleteNotification,DELETE FROM notifications WHERE id=id,PASS
+/employee/leave-balance,EMPLOYEE,LeaveBalancePage,Fiscal Year Selector,Filter leave balances by year,setYear,useMyLeaveBalances(fiscalYear),SELECT FROM leave_balances,PASS
+/employee/leave-balance,EMPLOYEE,LeaveBalancePage,Export PDF Statement,Generate official leave statement PDF,generatePDF,Client jsPDF export,None (read),PASS
+/employee/leave-calendar,EMPLOYEE,LeaveCalendarPage,Month/Week/Agenda Toggle,Change calendar viewing perspective,setView,Local state,None (read),PASS
+/employee/leave-calendar,EMPLOYEE,LeaveCalendarPage,Export iCal (.ics),Download standard ICS calendar file,exportICS,ical-generator,None (read),PASS
+/employee/profile,EMPLOYEE,ProfilePage,Save Profile Changes,Update employee contact phone/notes,handleSave,updateEmployeeContact,UPDATE employees SET phone=val,PASS
+/manager/approvals,MANAGER,PendingApprovalsPreview,Approve,Approve pending leave request,handleApprove,managerApprove -> /api/store/mutate (manager_approve),process_approval_action(APPROVED) + next approver route,PASS
+/manager/approvals,MANAGER,PendingApprovalsPreview,Reject,Reject pending leave with mandatory reason,handleReject,managerReject -> /api/store/mutate (manager_reject),process_approval_action(REJECTED) + reservation release,PASS
+/manager/approvals,MANAGER,PendingApprovalsPreview,Request Clarification,Send clarification inquiry to applicant,handleClarify,managerRequestClarification -> /api/store/mutate (manager_clarify),process_approval_action(CLARIFICATION_REQUESTED),PASS
+/manager/approvals/[id],MANAGER,ApprovalDetailView,Approve Application,Approve leave from detailed inspection view,executeApproval,processApprovalAction(APPROVED),process_approval_action(APPROVED),PASS
+/manager/approvals/[id],MANAGER,ApprovalDetailView,Reject Application,Reject leave with justification dialog,executeRejection,processApprovalAction(REJECTED),process_approval_action(REJECTED),PASS
+/manager/team-calendar,MANAGER,TeamCalendarPage,Export Team Schedule CSV,Export organization/team absence schedule,handleExportCSV,exportTeamCalendarCSV,None (read),PASS
+/manager/delegations,MANAGER,DelegationsPage,Create Delegation,Temporarily delegate approval authority,handleCreateDelegation,createApprovalDelegation,INSERT INTO approval_delegations,PASS
+/manager/delegations,MANAGER,DelegationsPage,Revoke Delegation,Revoke active approval delegation,handleRevokeDelegation,revokeApprovalDelegation,UPDATE approval_delegations SET is_active=false,PASS
+/manager/notifications,MANAGER,ManagerNotificationsPage,Mark all as read,Mark all manager approval alerts read,handleMarkAllRead,markAllNotificationsAsRead,UPDATE notifications SET is_read=true,PASS
+/hr/employees,HR,EmployeesPage,Add Employee,Create new company employee record,handleAddEmployee,createEmployee,INSERT INTO employees + leave_balances seeding,PASS
+/hr/employees,HR,EmployeesPage,Toggle Active Status,Deactivate or activate employee account,handleToggleActive,toggleEmployeeActive,UPDATE employees SET is_active=not is_active,PASS
+/hr/employees,HR,EmployeesPage,Export Directory CSV,Export all company employee records,handleExportCSV,exportEmployeesCSV,None (read),PASS
+/hr/employees,HR,EmployeesPage,Import CSV,Bulk import employee records from CSV,handleImportCSV,importEmployeesCSV,INSERT INTO employees (batch),PASS
+/hr/departments,HR,DepartmentsPage,Create Department,Create organizational department unit,handleCreateDepartment,createDepartment,INSERT INTO departments,PASS
+/hr/departments,HR,DepartmentsPage,Assign Manager,Update department lead/manager,handleAssignManager,updateDepartment,UPDATE departments SET manager_id=id,PASS
+/hr/holidays,HR,HolidayCalendarsPage,Add Holiday,Add holiday observance to calendar,handleHolidaySubmit,addHoliday,INSERT INTO holidays,PASS
+/hr/holidays,HR,HolidayCalendarsPage,Edit Holiday,Update existing holiday name/date/type,handleHolidaySubmit,updateHoliday,UPDATE holidays SET name=name, holiday_date=date,PASS
+/hr/holidays,HR,HolidayCalendarsPage,Delete Holiday,Remove holiday from calendar,handleDeleteHoliday,deleteHoliday,DELETE FROM holidays WHERE id=id,PASS
+/hr/holidays,HR,HolidayCalendarsPage,Import CSV,Import holidays from CSV text,handleImportCSV,importHolidaysCSV,INSERT INTO holidays (batch),PASS
+/hr/holidays,HR,HolidayCalendarsPage,New Calendar,Create custom branch holiday calendar,handleCreateCalendar,createHolidayCalendar,INSERT INTO holiday_calendars,PASS
+/hr/policies,HR,PoliciesPage,Create Policy,Configure organizational leave entitlement policy,handleCreatePolicy,createLeavePolicy,INSERT INTO leave_policies,PASS
+/hr/policies,HR,PoliciesPage,Update Quota,Update annual entitlement quota for leave type,handleUpdateQuota,updateLeaveTypeQuota,UPDATE leave_types SET annual_entitlement=quota,PASS
+/hr/reports,HR,ReportsPage,Export Monthly Utilization CSV,Export organization monthly leave utilization,handleExportCSV,exportUtilizationReportCSV,None (read),PASS
+/hr/reports,HR,ReportsPage,Export General Ledger CSV,Export complete leave balance transaction ledger,handleExportLedgerCSV,exportLeaveLedgerCSV,None (read),PASS
+/hr/audit-logs,HR,AuditLogsPage,Export CSV,Export filtered audit trail records,handleExportCSV,None (client CSV blob),None (read),PASS
+/hr/audit-logs,HR,AuditLogsPage,Inspect Payload,Inspect JSON state delta of audit record,setSelectedLog,None (dialog view),None (read),PASS
+/admin/organizations,ADMIN,OrganizationsPage,Create Organization,Create new enterprise tenant organization,handleCreateOrg,createOrganization,INSERT INTO organizations,PASS
+/admin/roles,ADMIN,RolesPage,Create Role,Define custom RBAC role with permission scope,handleCreateRole,createRole,INSERT INTO roles,PASS
+/admin/roles,ADMIN,RolesPage,Assign Role,Assign RBAC role to employee,handleAssignRole,assignRoleToUser,INSERT INTO employee_role_assignments,PASS
+/admin/permissions,ADMIN,PermissionsPage,Toggle Permission,Update role permission matrix,handleTogglePermission,updateRolePermissions,INSERT/DELETE role_permissions,PASS
+/admin/security,ADMIN,SecuritySettingsPage,Update Password Policy,Configure MFA and password expiration rules,handleSaveSecuritySettings,updateSecuritySettings,UPDATE organization_security_settings,PASS
+/admin/system-settings,ADMIN,SystemSettingsPage,Save Settings,Update timezone and fiscal year settings,handleSaveSettings,updateSystemSettings,UPDATE organization_settings,PASS
+/admin/audit-logs,ADMIN,AdminAuditLogsPage,Export CSV,Export complete system governance audit trail,handleExportCSV,None (client CSV blob),None (read),PASS
+/login,PUBLIC,LoginPage,Sign In,Authenticate user and set secure session cookie,handleSignIn,signInWithCredentials -> setCookie(elms360_user),SELECT employees + session cookie creation,PASS
+/login,PUBLIC,LoginPage,Quick Role Switch (Demo),Switch between Employee/Manager/HR/Admin profiles,handleQuickLogin,signInWithCredentials,SELECT employee + session cookie,PASS
+/(layout),UNIVERSAL,Header,Sign Out,Terminate session and redirect to login,handleSignOut,signOut -> clearCookie(elms360_user),Session destruction,PASS

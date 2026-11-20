@@ -11,12 +11,18 @@ export default async function ManagerApprovalDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  let data: any = null
 
   try {
-    const data = await getLeaveRequestDetail(id)
-    return <ApprovalDetailView data={data} />
+    data = await getLeaveRequestDetail(id)
   } catch (err) {
     console.error('Failed to load leave request detail:', err)
     notFound()
   }
+
+  if (!data) {
+    notFound()
+  }
+
+  return <ApprovalDetailView data={data} />
 }

@@ -6,11 +6,12 @@ import {
   Calendar as CalendarIcon,
   Plus,
   Upload,
-  Edit,
+  Edit2,
   Trash2,
   CalendarDays,
   Globe,
   MapPin,
+  Sparkles,
 } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Button } from '@/components/ui/button'
@@ -152,7 +153,7 @@ export default function HolidayCalendarsPage() {
           isOptional: formData.isOptional,
           description: formData.description,
         })
-        toast.success(`Holiday ${formData.name} updated`)
+        toast.success(`Holiday "${formData.name}" updated successfully`)
       } else {
         await addHoliday(activeCalendar.id, {
           name: formData.name,
@@ -161,7 +162,7 @@ export default function HolidayCalendarsPage() {
           isOptional: formData.isOptional,
           description: formData.description,
         })
-        toast.success(`Holiday ${formData.name} added`)
+        toast.success(`Holiday "${formData.name}" added successfully`)
       }
       setHolidayModalOpen(false)
       loadCalendars()
@@ -170,10 +171,10 @@ export default function HolidayCalendarsPage() {
     }
   }
 
-  const handleDeleteHoliday = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this holiday?')) return
+  const handleDeleteHoliday = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to remove "${name}" from this calendar?`)) return
     await deleteHoliday(id)
-    toast.success('Holiday deleted')
+    toast.success(`Holiday "${name}" deleted`)
     loadCalendars()
   }
 
@@ -185,6 +186,8 @@ export default function HolidayCalendarsPage() {
       setImportResult(res)
       if (res.imported > 0) {
         toast.success(`Imported ${res.imported} holidays`)
+        setImportModalOpen(false)
+        setCsvContent('')
         loadCalendars()
       } else {
         toast.error('Failed to import holidays from CSV')
@@ -209,7 +212,7 @@ export default function HolidayCalendarsPage() {
         setCreateCalModalOpen(false)
         setNewCalName('')
         setNewCalLocation('')
-        toast.success(`Created calendar ${newCalName}`)
+        toast.success(`Created calendar "${newCalName}"`)
         loadCalendars()
       }
     } finally {
@@ -218,50 +221,64 @@ export default function HolidayCalendarsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto pb-16">
       <PageHeader
         title="Holiday Calendars & Non-Working Days"
         description="Establish company-wide national holidays, optional regional observances, and location-specific festive days."
       >
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)}>
-            <Upload className="h-4 w-4 mr-1.5" /> Import CSV
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setImportModalOpen(true)}
+            className="border-[#E5E7EB] bg-white text-[#111827] hover:bg-[#F1F3F5] h-9 text-xs font-semibold"
+          >
+            <Upload className="h-3.5 w-3.5 mr-1.5 text-[#64748B]" /> Import CSV
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setCreateCalModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-1.5" /> New Calendar
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCreateCalModalOpen(true)}
+            className="border-[#E5E7EB] bg-white text-[#111827] hover:bg-[#F1F3F5] h-9 text-xs font-semibold"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1.5 text-[#64748B]" /> New Calendar
           </Button>
-          <Button size="sm" onClick={handleOpenAddHoliday}>
-            <Plus className="h-4 w-4 mr-1.5" /> Add Holiday
+          <Button
+            size="sm"
+            onClick={handleOpenAddHoliday}
+            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white h-9 text-xs font-semibold shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Holiday
           </Button>
         </div>
       </PageHeader>
 
       {/* Selectors Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-4 rounded-lg border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-[#E5E7EB] shadow-xs">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="space-y-1">
-            <span className="text-xs text-muted-foreground font-medium">Calendar Year</span>
+            <span className="text-xs text-[#64748B] font-semibold">Calendar Year</span>
             <Select value={String(year)} onValueChange={(val) => setYear(Number(val))}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-32 bg-white border-[#E5E7EB] text-[#111827] font-medium h-9 text-xs">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="2025">2025</SelectItem>
-                <SelectItem value="2026">2026</SelectItem>
-                <SelectItem value="2027">2027</SelectItem>
+              <SelectContent className="bg-white border-[#E5E7EB] text-[#111827]">
+                <SelectItem value="2025" className="cursor-pointer hover:bg-[#F1F3F5]">2025</SelectItem>
+                <SelectItem value="2026" className="cursor-pointer hover:bg-[#F1F3F5]">2026</SelectItem>
+                <SelectItem value="2027" className="cursor-pointer hover:bg-[#F1F3F5]">2027</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs text-muted-foreground font-medium">Active Holiday Calendar</span>
+            <span className="text-xs text-[#64748B] font-semibold">Active Holiday Calendar</span>
             <Select value={selectedCalendarId} onValueChange={setSelectedCalendarId}>
-              <SelectTrigger className="w-64">
+              <SelectTrigger className="w-64 bg-white border-[#E5E7EB] text-[#111827] font-medium h-9 text-xs">
                 <SelectValue placeholder="Select Calendar" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white border-[#E5E7EB] text-[#111827]">
                 {calendars.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
+                  <SelectItem key={c.id} value={c.id} className="cursor-pointer hover:bg-[#F1F3F5]">
                     {c.name} {c.is_default && '(Default)'}
                   </SelectItem>
                 ))}
@@ -270,65 +287,88 @@ export default function HolidayCalendarsPage() {
           </div>
         </div>
 
-        <div className="text-sm text-muted-foreground">
-          Total Holidays: <strong className="text-foreground">{holidays.length}</strong>
+        <div className="flex items-center gap-2 text-xs text-[#64748B]">
+          <span>Total Holidays in {year}:</span>
+          <span className="px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-xs border border-[#BFDBFE]">
+            {holidays.length}
+          </span>
         </div>
       </div>
 
       {/* Monthly Holidays Grouped View */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {Object.entries(holidaysByMonth).map(([month, monthHolidays]) => (
-          <Card key={month} className={monthHolidays.length > 0 ? '' : 'opacity-60 bg-muted/20'}>
-            <CardHeader className="pb-3 border-b bg-muted/30 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-semibold">{month}</CardTitle>
-              <Badge variant="secondary" className="text-xs">
-                {monthHolidays.length} {monthHolidays.length === 1 ? 'day' : 'days'}
+          <Card
+            key={month}
+            className="border-[#E5E7EB] bg-white rounded-xl shadow-xs overflow-hidden transition-all hover:border-[#D1D5DB]"
+          >
+            <CardHeader className="pb-3 pt-3.5 px-4 border-b border-[#F1F3F5] bg-[#FAFAFA] flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-bold text-[#111827]">{month}</CardTitle>
+              <Badge
+                variant="outline"
+                className={`text-[11px] font-semibold ${
+                  monthHolidays.length > 0
+                    ? 'bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]'
+                    : 'bg-[#F1F3F5] text-[#64748B] border-[#E5E7EB]'
+                }`}
+              >
+                {monthHolidays.length} {monthHolidays.length === 1 ? 'holiday' : 'holidays'}
               </Badge>
             </CardHeader>
-            <CardContent className="p-3">
+            <CardContent className="p-3.5">
               {monthHolidays.length > 0 ? (
-                <div className="divide-y space-y-1">
+                <div className="divide-y divide-[#F1F3F5] space-y-2">
                   {monthHolidays.map((h) => (
                     <div
                       key={h.id}
-                      className="pt-2 pb-1 flex items-start justify-between gap-2 text-xs"
+                      className="pt-2 pb-1 flex items-start justify-between gap-3 text-xs first:pt-0"
                     >
-                      <div>
-                        <p className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-[#111827] text-sm flex items-center gap-1.5 truncate">
                           {h.name}
                           {h.is_optional && (
-                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#FEF3C7] text-[#92400E] font-medium border border-[#FDE68A]">
                               Optional
-                            </Badge>
+                            </span>
                           )}
                         </p>
-                        <p className="text-muted-foreground mt-0.5">
-                          {h.holiday_date} • {h.holiday_type}
+                        <p className="text-[#475569] font-medium text-xs mt-1">
+                          📅 {h.holiday_date} • <span className="text-[#64748B] capitalize">{h.holiday_type?.toLowerCase() || 'national'}</span>
                         </p>
+                        {h.description && (
+                          <p className="text-[#64748B] text-[11px] mt-0.5 line-clamp-1 italic">
+                            {h.description}
+                          </p>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0 pt-0.5">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7"
+                          className="h-7 w-7 text-[#64748B] hover:text-[#2563EB] hover:bg-[#EFF6FF] rounded-md"
                           onClick={() => handleOpenEditHoliday(h)}
+                          title="Edit holiday"
                         >
-                          <Edit className="h-3 w-3" />
+                          <Edit2 className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => handleDeleteHoliday(h.id)}
+                          className="h-7 w-7 text-[#64748B] hover:text-[#DC2626] hover:bg-[#FEE2E2] rounded-md"
+                          onClick={() => handleDeleteHoliday(h.id, h.name)}
+                          title="Delete holiday"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground py-3 text-center">No holidays in {month}</p>
+                <div className="py-6 text-center text-xs text-[#94A3B8]">
+                  <CalendarDays className="h-6 w-6 mx-auto mb-1 text-[#CBD5E1]" />
+                  <span>No holidays in {month}</span>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -337,71 +377,106 @@ export default function HolidayCalendarsPage() {
 
       {/* Add / Edit Holiday Modal */}
       <Dialog open={holidayModalOpen} onOpenChange={setHolidayModalOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white border-[#E5E7EB] text-[#111827] rounded-xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingHolidayId ? 'Edit Holiday' : 'Add Holiday'}</DialogTitle>
-            <DialogDescription>
-              {activeCalendar?.name} ({year})
+            <DialogTitle className="text-base font-bold text-[#111827]">
+              {editingHolidayId ? 'Edit Holiday' : 'Add Holiday'}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-[#64748B]">
+              Calendar: {activeCalendar?.name} ({year})
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleHolidaySubmit} className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="hName">Holiday Name *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="hName" className="text-xs font-semibold text-[#111827]">
+                Holiday Name <span className="text-[#DC2626]">*</span>
+              </Label>
               <Input
                 id="hName"
                 placeholder="e.g. Independence Day"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
+                className="bg-white border-[#E5E7EB] text-[#111827] h-9 text-xs"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="hDate">Holiday Date *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="hDate" className="text-xs font-semibold text-[#111827]">
+                Holiday Date <span className="text-[#DC2626]">*</span>
+              </Label>
               <Input
                 id="hDate"
                 type="date"
                 value={formData.holidayDate}
                 onChange={(e) => setFormData({ ...formData, holidayDate: e.target.value })}
                 required
+                className="bg-white border-[#E5E7EB] text-[#111827] h-9 text-xs"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="hType">Holiday Classification</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="hType" className="text-xs font-semibold text-[#111827]">
+                Holiday Type
+              </Label>
               <Select
                 value={formData.holidayType}
                 onValueChange={(val: any) => setFormData({ ...formData, holidayType: val })}
               >
-                <SelectTrigger id="hType">
+                <SelectTrigger id="hType" className="bg-white border-[#E5E7EB] text-[#111827] h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="NATIONAL">National Public Holiday</SelectItem>
-                  <SelectItem value="REGIONAL">Regional Observance</SelectItem>
-                  <SelectItem value="ORGANIZATION">Company Specific Foundation Day</SelectItem>
-                  <SelectItem value="OPTIONAL">Optional / Restricted Holiday</SelectItem>
+                <SelectContent className="bg-white border-[#E5E7EB] text-[#111827]">
+                  <SelectItem value="NATIONAL">National Holiday</SelectItem>
+                  <SelectItem value="REGIONAL">Regional Holiday</SelectItem>
+                  <SelectItem value="OPTIONAL">Optional / Restricted</SelectItem>
+                  <SelectItem value="ORGANIZATION">Organization Specific</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center justify-between p-3 rounded-lg border border-[#E5E7EB] bg-[#FAFAFA]">
               <div>
-                <Label>Mark as Optional Leave</Label>
-                <p className="text-xs text-muted-foreground">Employees can choose whether to avail</p>
+                <p className="text-xs font-semibold text-[#111827]">Optional / Floating Holiday</p>
+                <p className="text-[11px] text-[#64748B]">Employees choose from optional list based on quota</p>
               </div>
               <Switch
                 checked={formData.isOptional}
-                onCheckedChange={(val) => setFormData({ ...formData, isOptional: val })}
+                onCheckedChange={(checked) => setFormData({ ...formData, isOptional: checked })}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="hDesc" className="text-xs font-semibold text-[#111827]">
+                Description / Notes (Optional)
+              </Label>
+              <Textarea
+                id="hDesc"
+                placeholder="Brief information about this observance..."
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={2}
+                className="bg-white border-[#E5E7EB] text-[#111827] text-xs"
               />
             </div>
 
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setHolidayModalOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setHolidayModalOpen(false)}
+                className="border-[#E5E7EB] text-[#64748B] hover:text-[#111827]"
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSubmitting}
+                className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+              >
                 {isSubmitting ? 'Saving...' : editingHolidayId ? 'Update Holiday' : 'Add Holiday'}
               </Button>
             </DialogFooter>
@@ -411,33 +486,73 @@ export default function HolidayCalendarsPage() {
 
       {/* Import CSV Modal */}
       <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white border-[#E5E7EB] text-[#111827] rounded-xl sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Import Holidays via CSV</DialogTitle>
-            <DialogDescription>
-              Provide holiday records with headers:{' '}
-              <code className="text-xs bg-muted p-0.5 rounded">name,holiday_date,holiday_type,is_optional</code>
+            <DialogTitle className="text-base font-bold text-[#111827]">Import Holidays via CSV</DialogTitle>
+            <DialogDescription className="text-xs text-[#64748B]">
+              Add multiple holidays at once to {activeCalendar?.name}. Expected headers: Name, Date, Type
             </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-3 py-2">
-            <Textarea
-              className="h-44 font-mono text-xs"
-              placeholder={`name,holiday_date,holiday_type,is_optional\nLabor Day,2026-05-01,NATIONAL,false\nGood Friday,2026-04-03,OPTIONAL,true`}
-              value={csvContent}
-              onChange={(e) => setCsvContent(e.target.value)}
-            />
+            <div className="p-2.5 rounded-lg bg-[#F8FAFC] border border-[#E5E7EB] font-mono text-[11px] text-[#334155] leading-relaxed">
+              Name,Date,Type<br />
+              New Year's Day,2026-01-01,NATIONAL<br />
+              Republic Day,2026-01-26,NATIONAL<br />
+              Independence Day,2026-08-15,NATIONAL
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="csvText" className="text-xs font-semibold text-[#111827]">
+                Paste CSV Content
+              </Label>
+              <Textarea
+                id="csvText"
+                rows={6}
+                placeholder="Paste CSV rows here..."
+                value={csvContent}
+                onChange={(e) => setCsvContent(e.target.value)}
+                className="font-mono text-xs bg-white border-[#E5E7EB] text-[#111827]"
+              />
+            </div>
+
             {importResult && (
-              <p className="text-xs font-semibold text-emerald-600">
-                Imported {importResult.imported} holidays successfully.
-              </p>
+              <div
+                className={`p-3 rounded-lg text-xs font-medium border ${
+                  importResult.imported > 0
+                    ? 'bg-[#DCFCE7] border-[#BBF7D0] text-[#166534]'
+                    : 'bg-[#FEE2E2] border-[#FECACA] text-[#991B1B]'
+                }`}
+              >
+                Imported: {importResult.imported} holidays
+                {importResult.errors?.length > 0 && (
+                  <ul className="list-disc pl-4 mt-1 space-y-0.5 text-[11px]">
+                    {importResult.errors.map((err: string, i: number) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setImportModalOpen(false)}>
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setImportModalOpen(false)}
+              className="border-[#E5E7EB] text-[#64748B] hover:text-[#111827]"
+            >
+              Close
             </Button>
-            <Button onClick={handleImportCSV} disabled={!csvContent.trim() || isSubmitting}>
-              Import Holidays
+            <Button
+              size="sm"
+              onClick={handleImportCSV}
+              disabled={isSubmitting || !csvContent.trim()}
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+            >
+              {isSubmitting ? 'Importing...' : 'Start Import'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -445,35 +560,59 @@ export default function HolidayCalendarsPage() {
 
       {/* Create New Calendar Modal */}
       <Dialog open={createCalModalOpen} onOpenChange={setCreateCalModalOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white border-[#E5E7EB] text-[#111827] rounded-xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create Regional Holiday Calendar</DialogTitle>
-            <DialogDescription>For branch offices or overseas locations</DialogDescription>
+            <DialogTitle className="text-base font-bold text-[#111827]">Create New Holiday Calendar</DialogTitle>
+            <DialogDescription className="text-xs text-[#64748B]">
+              Define a regional or location-specific holiday schedule for {year}.
+            </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Calendar Name *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="calName" className="text-xs font-semibold text-[#111827]">
+                Calendar Name <span className="text-[#DC2626]">*</span>
+              </Label>
               <Input
-                placeholder="e.g. UK London Office Calendar 2026"
+                id="calName"
+                placeholder="e.g. Bangalore Branch Calendar"
                 value={newCalName}
                 onChange={(e) => setNewCalName(e.target.value)}
+                className="bg-white border-[#E5E7EB] text-[#111827] h-9 text-xs"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Location / Region</Label>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="calLoc" className="text-xs font-semibold text-[#111827]">
+                Location / Region (Optional)
+              </Label>
               <Input
-                placeholder="e.g. London, United Kingdom"
+                id="calLoc"
+                placeholder="e.g. Karnataka, India"
                 value={newCalLocation}
                 onChange={(e) => setNewCalLocation(e.target.value)}
+                className="bg-white border-[#E5E7EB] text-[#111827] h-9 text-xs"
               />
             </div>
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateCalModalOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCreateCalModalOpen(false)}
+              className="border-[#E5E7EB] text-[#64748B] hover:text-[#111827]"
+            >
               Cancel
             </Button>
-            <Button onClick={handleCreateCalendar} disabled={!newCalName.trim() || isSubmitting}>
-              Create Calendar
+            <Button
+              size="sm"
+              onClick={handleCreateCalendar}
+              disabled={isSubmitting || !newCalName.trim()}
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+            >
+              {isSubmitting ? 'Creating...' : 'Create Calendar'}
             </Button>
           </DialogFooter>
         </DialogContent>
