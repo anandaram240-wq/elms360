@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -205,6 +206,7 @@ export default function ApplyLeavePage() {
                     </Label>
                     <DatePicker
                       value={startDate}
+                      dateFormat="EEE, MMM d, yyyy"
                       onChange={(date) => {
                         setStartDate(date)
                         if (!endDate || (date && endDate < date)) {
@@ -221,12 +223,61 @@ export default function ApplyLeavePage() {
                     </Label>
                     <DatePicker
                       value={endDate}
+                      dateFormat="EEE, MMM d, yyyy"
                       onChange={setEndDate}
                       minDate={startDate}
                       placeholder="Select end date"
                     />
                   </div>
                 </div>
+
+                {/* Inline Working Day / Weekend Feedback */}
+                {startDate && endDate && durationResult && (
+                  <div
+                    className={cn(
+                      'p-3 rounded-lg text-xs font-medium border flex items-center justify-between transition-all',
+                      durationResult.workingDays > 0
+                        ? 'bg-[#F0FDF4] border-[#BBF7D0] text-[#166534]'
+                        : 'bg-[#FEF3C7] border-[#FDE68A] text-[#92400E]'
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      {durationResult.workingDays > 0 ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 text-[#166534] shrink-0" />
+                          <span>
+                            <strong>
+                              {durationResult.workingDays} Working Day{durationResult.workingDays > 1 ? 's' : ''}
+                            </strong>
+                            {durationResult.skippedWeekends > 0 &&
+                              ` (${durationResult.skippedWeekends} weekend day${
+                                durationResult.skippedWeekends > 1 ? 's' : ''
+                              } exempted)`}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="h-4 w-4 text-[#92400E] shrink-0" />
+                          <span>
+                            <strong>Weekend days selected (0 working days).</strong> Weekends are non-working days off.
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {durationResult.workingDays <= 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStartDate(new Date(2026, 10, 24))
+                          setEndDate(new Date(2026, 10, 25))
+                        }}
+                        className="underline font-semibold hover:text-[#78350F] ml-2 shrink-0 cursor-pointer text-xs"
+                      >
+                        Try Nov 24–25 (Working Days)
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Day Schedule Selection */}
                 <div className="space-y-1.5">
@@ -400,9 +451,25 @@ export default function ApplyLeavePage() {
 
                 {/* Validation Notice Banner */}
                 {validationError && (
-                  <div className="rounded-lg border border-[#FDE68A] bg-[#FEF3C7] p-3 flex items-start gap-2.5 text-xs text-[#92400E]">
-                    <AlertCircle className="h-4 w-4 text-[#92400E] shrink-0 mt-0.5" />
-                    <p className="leading-relaxed font-medium">{validationError}</p>
+                  <div className="rounded-lg border border-[#FDE68A] bg-[#FEF3C7] p-3 space-y-2.5 text-xs text-[#92400E]">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="h-4 w-4 text-[#92400E] shrink-0 mt-0.5" />
+                      <p className="leading-relaxed font-medium">{validationError}</p>
+                    </div>
+                    {durationResult && durationResult.workingDays <= 0 && (
+                      <div className="pl-6">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStartDate(new Date(2026, 10, 24))
+                            setEndDate(new Date(2026, 10, 25))
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#D97706] hover:bg-[#B45309] text-white font-medium text-xs transition-colors shadow-xs cursor-pointer"
+                        >
+                          <span>Switch to Working Days (Nov 24 – 25, 2026 · 2 Days)</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
