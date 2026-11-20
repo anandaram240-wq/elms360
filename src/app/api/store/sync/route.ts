@@ -78,12 +78,12 @@ export async function GET() {
       allows_half_day: lt.allows_half_day ?? true,
     }))
 
-    // 3. Fetch leave balances (current year)
+    // 3. Fetch leave balances (current and upcoming fiscal years)
     const currentYear = new Date().getFullYear()
     const { data: rawBalances } = await admin
       .from('leave_balances')
       .select('id, employee_id, leave_type_id, fiscal_year, opening_balance, accrued, used, pending, adjusted, carried_forward, available_balance')
-      .eq('fiscal_year', currentYear)
+      .in('fiscal_year', [currentYear, currentYear + 1])
 
     const leaveBalances = (rawBalances || []).map((b: any) => ({
       id: b.id,

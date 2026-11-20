@@ -53,8 +53,9 @@ export default function ApplyLeavePage() {
 
   // Current employee & balances
   const employeeId = currentUser?.id || currentUser?.employeeId || ''
+  const targetYear = startDate ? startDate.getFullYear() : 2026
   const myBalances = state.leaveBalances.filter(
-    (b) => b.employee_id === employeeId && b.fiscal_year === 2026
+    (b) => b.employee_id === employeeId && (b.fiscal_year === targetYear || b.fiscal_year === 2026)
   )
 
   // Set default leave type on load
@@ -65,8 +66,11 @@ export default function ApplyLeavePage() {
   }, [leaveTypeId, state.leaveTypes])
 
   const selectedType = state.leaveTypes.find((t) => t.id === leaveTypeId)
-  const currentBalance = myBalances.find((b) => b.leave_type_id === leaveTypeId)
-  const availableDays = currentBalance ? currentBalance.available_balance : 0
+  const currentBalance = myBalances.find((b) => b.leave_type_id === leaveTypeId && b.fiscal_year === targetYear)
+    || myBalances.find((b) => b.leave_type_id === leaveTypeId)
+  const availableDays = currentBalance
+    ? currentBalance.available_balance
+    : (selectedType ? (selectedType.annual_entitlement || 0) : 0)
 
   // Format dates for calculation
   const startDateStr = startDate ? format(startDate, 'yyyy-MM-dd') : ''

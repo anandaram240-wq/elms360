@@ -152,3 +152,26 @@ export function formatDateWithDay(dateStr: string): string {
   const dow = getDayOfWeek(dateStr)
   return `${day} ${months[month - 1]} ${year} (${days[dow]})`
 }
+
+/**
+ * Calculates the fiscal year for a given date string (YYYY-MM-DD).
+ * 
+ * If leaveYearType === 'FISCAL' and fiscalYearStart > 1 (e.g., 4 for April):
+ * - Dates from April to December of year Y belong to fiscal year Y.
+ * - Dates from January to March of year Y belong to fiscal year Y - 1.
+ * 
+ * If leaveYearType === 'CALENDAR' or fiscalYearStart === 1:
+ * - Returns calendar year.
+ */
+export function getFiscalYear(
+  dateStr: string,
+  fiscalYearStart: number = 4,
+  leaveYearType: 'CALENDAR' | 'FISCAL' = 'FISCAL'
+): number {
+  if (!dateStr) return new Date().getFullYear()
+  const { year, month } = parseDateParts(dateStr)
+  if (leaveYearType === 'FISCAL' && fiscalYearStart > 1) {
+    return month < fiscalYearStart ? year - 1 : year
+  }
+  return year
+}

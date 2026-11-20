@@ -8,6 +8,7 @@ import {
   type OverlapPolicy,
   type LeaveRequestRecord,
 } from '@/lib/overlap-calculator'
+import { getFiscalYear } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
       // Fetch weekly off days and holidays for accurate working-day calculation
       const { data: rawOrg } = await admin
         .from('organizations')
-        .select('weekly_off_days')
+        .select('weekly_off_days, fiscal_year_start')
         .eq('id', emp.organization_id)
         .limit(1)
         .maybeSingle()
@@ -140,14 +141,76 @@ export async function POST(request: Request) {
       }
 
       // 5. Validate available balance
-      const currentYear = new Date(startDate).getFullYear()
-      const { data: balance } = await admin
+      const startYear = new Date(startDate).getFullYear()
+
+      // Fetch org settings to determine fiscal year rules
+      const { data: rawOrgSettings } = await admin
+        .from('organization_settings')
+        .select('leave_year_type')
+        .eq('organization_id', emp.organization_id)
+        .maybeSingle()
+
+      const fiscalYearStart = rawOrg?.fiscal_year_start || 4
+      const leaveYearType = (rawOrgSettings?.leave_year_type as 'CALENDAR' | 'FISCAL') || 'FISCAL'
+      const computedFiscalYear = getFiscalYear(startDate, fiscalYearStart, leaveYearType)
+
+      // Look up balance by calendar year first, or by computed fiscal year
+      let { data: balance } = await admin
         .from('leave_balances')
-        .select('available_balance')
+        .select('available_balance, fiscal_year')
         .eq('employee_id', actingEmpId)
         .eq('leave_type_id', leaveTypeId)
-        .eq('fiscal_year', currentYear)
+        .eq('fiscal_year', startYear)
         .maybeSingle()
+
+      if (!balance && computedFiscalYear !== startYear) {
+        const { data: fyBal } = await admin
+          .from('leave_balances')
+          .select('available_balance, fiscal_year')
+          .eq('employee_id', actingEmpId)
+          .eq('leave_type_id', leaveTypeId)
+          .eq('fiscal_year', computedFiscalYear)
+          .maybeSingle()
+        if (fyBal) {
+          balance = fyBal
+        }
+      }
+
+      // If no balance row exists for this fiscal year, auto-provision from leave_policies
+      if (!balance) {
+        const { data: policy } = await admin
+          .from('leave_policies')
+          .select('annual_entitlement')
+          .eq('organization_id', emp.organization_id)
+          .eq('leave_type_id', leaveTypeId)
+          .eq('is_active', true)
+          .maybeSingle()
+
+        const entitlement = Number(policy?.annual_entitlement || 0)
+        if (entitlement > 0) {
+          const { data: newBal } = await admin
+            .from('leave_balances')
+            .insert({
+              employee_id: actingEmpId,
+              leave_type_id: leaveTypeId,
+              organization_id: emp.organization_id,
+              fiscal_year: startYear,
+              opening_balance: entitlement,
+              accrued: 0,
+              used: 0,
+              pending: 0,
+              adjusted: 0,
+              carried_forward: 0,
+              expired: 0,
+            })
+            .select('available_balance, fiscal_year')
+            .single()
+
+          if (newBal) {
+            balance = newBal
+          }
+        }
+      }
 
       const avail = Number(balance?.available_balance || 0)
       if (avail < totalDays) {

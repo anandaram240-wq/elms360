@@ -700,9 +700,14 @@ export function createMockSupabaseClient(activeUser?: any) {
         req.current_step_order = 1
 
         // 2. Reserve balance (increment pending)
-        const balance = db.leave_balances.find(
+        let balance = db.leave_balances.find(
           (b) => b.employee_id === req.employee_id && b.leave_type_id === req.leave_type_id && b.fiscal_year === startYear
         )
+        if (!balance) {
+          balance = db.leave_balances.find(
+            (b) => b.employee_id === req.employee_id && b.leave_type_id === req.leave_type_id
+          )
+        }
         if (balance) {
           balance.pending = Number(balance.pending || 0) + Number(req.total_days || 0)
           balance.updated_at = now
@@ -771,9 +776,14 @@ export function createMockSupabaseClient(activeUser?: any) {
 
         const now = new Date().toISOString()
         const startYear = req.start_date ? parseInt(req.start_date.split('-')[0], 10) : new Date().getFullYear()
-        const balance = db.leave_balances.find(
+        let balance = db.leave_balances.find(
           (b) => b.employee_id === req.employee_id && b.leave_type_id === req.leave_type_id && b.fiscal_year === startYear
         )
+        if (!balance) {
+          balance = db.leave_balances.find(
+            (b) => b.employee_id === req.employee_id && b.leave_type_id === req.leave_type_id
+          )
+        }
         const previousStatus = req.status
 
         if (action === 'APPROVE' || action === 'APPROVED') {
