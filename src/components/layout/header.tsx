@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useElmsStore } from "@/lib/store/elms-store";
 
 export type ConnectionStatus = "connected" | "reconnecting" | "disconnected";
 
@@ -55,6 +56,20 @@ export function Header({
   onSignOut,
 }: HeaderProps) {
   const pathname = usePathname();
+
+  let storeRealtimeStatus = "IDLE";
+  let storeLastEvent: any = null;
+  try {
+    const store = useElmsStore();
+    storeRealtimeStatus = store?.realtimeStatus ?? "IDLE";
+    storeLastEvent = store?.lastRealtimeEvent ?? null;
+  } catch {}
+
+  const isLive = storeRealtimeStatus === "SUBSCRIBED";
+  const isReconnecting =
+    storeRealtimeStatus === "RECONNECTING" ||
+    storeRealtimeStatus === "CONNECTING" ||
+    connectionStatus === "reconnecting";
 
   // Generate clean breadcrumb labels
   const segments = pathname.split("/").filter(Boolean);
@@ -94,11 +109,47 @@ export function Header({
 
       {/* Right side controls */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* Authoritative PostgreSQL Sync Indicator */}
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F1F3F5] border border-[#E5E7EB] text-[11px] font-medium text-[#334155]">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#166534]" />
-          <span>PostgreSQL Authoritative</span>
+        {/* Authoritative PostgreSQL Realtime Sync Indicator */}
+        <div
+          className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F1F3F5] border border-[#E5E7EB] text-[11px] font-medium text-[#334155]"
+          title={
+            storeLastEvent
+              ? `Last realtime event: ${storeLastEvent.type} (${new Date(storeLastEvent.ts).toLocaleTimeString()})`
+              : "PostgreSQL Realtime Synchronization Active"
+          }
+        >
+          {isLive ? (
+            <>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#16A34A] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#16A34A]" />
+              </span>
+              <span className="font-semibold text-[#15803D]">Live</span>
+              <span className="text-[#CBD5E1]">|</span>
+              <span className="text-[#64748B]">PostgreSQL</span>
+            </>
+          ) : isReconnecting ? (
+            <>
+              <span className="h-2 w-2 rounded-full bg-[#D97706] animate-pulse" />
+              <span className="text-[#B45309]">Reconnecting...</span>
+            </>
+          ) : (
+            <>
+              <span className="h-1.5 w-1.5 rounded-full bg-[#166534]" />
+              <span>PostgreSQL Authoritative</span>
+            </>
+          )}
         </div>
+
+        {/* Dev-only Realtime Diagnostic Badge */}
+        {process.env.NODE_ENV !== "production" && storeRealtimeStatus !== "IDLE" && (
+          <div
+            className="hidden xl:flex items-center text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200"
+            title="Development diagnostic indicator"
+          >
+            RT:{storeRealtimeStatus}
+          </div>
+        )}
 
         {/* Notifications Icon */}
         <Button

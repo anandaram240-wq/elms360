@@ -3,6 +3,9 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import type { CurrentUser, RoleCode, DayType, LeaveStatus } from '@/types/app'
 import { calculateWorkingDays } from '../date-utils'
+import { useElmsRealtime, type RealtimeConnectionStatus } from '@/hooks/use-elms-realtime'
+import type { ElmsBroadcastPayload } from '@/lib/realtime-types'
+import { useQueryClient } from '@tanstack/react-query'
 
 export interface EmployeeRecord {
   id: string
@@ -151,6 +154,9 @@ export interface ElmsStoreContextType {
   weeklyOffDays: number[]
   isLoading: boolean
   dbError: string | null
+  realtimeStatus: RealtimeConnectionStatus
+  lastRealtimeEvent: ElmsBroadcastPayload | null
+  reconnectRealtime: () => void
 
   // Helpers
   refresh: () => Promise<void>
@@ -262,6 +268,29 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     fetchAuthoritativeState()
   }, [fetchAuthoritativeState])
+
+  const queryClient = useQueryClient()
+
+  // Realtime Broadcast Listener
+  const handleRealtimeEvent = useCallback(
+    (_payload: ElmsBroadcastPayload) => {
+      fetchAuthoritativeState()
+      try {
+        queryClient.invalidateQueries()
+      } catch {}
+    },
+    [fetchAuthoritativeState, queryClient]
+  )
+
+  const {
+    connectionStatus: realtimeStatus,
+    lastEvent: lastRealtimeEvent,
+    reconnect: reconnectRealtime,
+  } = useElmsRealtime({
+    employeeId: currentUser?.id ?? null,
+    onEvent: handleRealtimeEvent,
+    enabled: !!currentUser?.id,
+  })
 
   // Live Working Days Calculation
   const calculateDuration = useCallback(
@@ -431,8 +460,9 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
   const employeeReplyClarification = useCallback(
     async (requestId: string, reply: string) => {
       try {
-        await mutateBackend('submit_leave', {
+        await mutateBackend('employee_reply_clarification', {
           requestId,
+          employeeId: currentUser?.id,
           reply,
         })
         return { success: true }
@@ -440,7 +470,7 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: err.message }
       }
     },
-    [fetchAuthoritativeState]
+    [currentUser?.id, fetchAuthoritativeState]
   )
 
   // HR Actions
@@ -639,6 +669,9 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
       weeklyOffDays,
       isLoading,
       dbError,
+      realtimeStatus,
+      lastRealtimeEvent,
+      reconnectRealtime,
       refresh: fetchAuthoritativeState,
       calculateDuration,
       getBalanceForType,
@@ -677,6 +710,9 @@ export function ElmsStoreProvider({ children }: { children: React.ReactNode }) {
       weeklyOffDays,
       isLoading,
       dbError,
+      realtimeStatus,
+      lastRealtimeEvent,
+      reconnectRealtime,
       fetchAuthoritativeState,
       calculateDuration,
       getBalanceForType,
